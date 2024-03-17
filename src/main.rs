@@ -1,8 +1,11 @@
 mod error;
-
-use std::{io::{self, Write}, fs};
+mod scanner;
+mod token;
 
 use clap::Parser;
+
+use std::io::{self, Write};
+use std::fs;
 
 use error::Error;
 
@@ -39,11 +42,8 @@ fn read_file(fname: String) -> Result<(), Error> {
     let contents = fs::read_to_string(fname)
         .expect("Should have been able to read the file");
 
-    for line in contents.split('\n') {
-        let line = line.trim();
-
-        println!("{}", line);
-    }
+    let tokens = scanner::scan(contents, 0);
+    println!("{:?}", tokens);
 
     Ok(())
 }

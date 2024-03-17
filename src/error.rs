@@ -1,10 +1,18 @@
 #![allow(dead_code)]
 
+#[derive(Debug)]
 pub struct Error {
-    line: u32,
     err: ErrType,
+    line: u32,
 }
 
+impl Error {
+    pub fn new_with_msg(msg: String, line: u32) -> Self {
+        Self { line, err: ErrType::Other(msg) }
+    }
+}
+
+#[derive(Debug)]
 enum ErrType {
     Other(String)
 }
