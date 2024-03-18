@@ -24,12 +24,16 @@ fn print_prompt() {
 
 fn repl() -> Result<(), Error> {
     print_prompt();
+    let mut lineno = 0;
 
     // Line will be None if someone hits ^D
     for line in io::stdin().lines() {
         let line = line.unwrap();
-        println!("{}", line.trim());
 
+        let tokens = scanner::scan(line, lineno);
+        println!("{:?}", tokens);
+
+        lineno += 1;
         print_prompt();
     }
 
