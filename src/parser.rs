@@ -33,7 +33,7 @@ use crate::token::{
 // term           → factor (( "-" | "+" ) factor)*
 // factor         → unary ( ("/" | "*") unary )*
 // unary          → ("!" | "-") unary | primary
-// primary        → literal
+// primary        → literal | "(" expression ")"
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
@@ -75,10 +75,17 @@ impl Expr {
         match self {
             Expr::Eq(left, right) => pretty!("==", left, right, indent),
             Expr::Neq(left, right) => pretty!("!=", left, right, indent),
+
+            Expr::Gt(left, right) => pretty!("<", left, right, indent),
+            Expr::GtEq(left, right) => pretty!("<", left, right, indent),
+            Expr::Lt(left, right) => pretty!("<", left, right, indent),
+            Expr::LtEq(left, right) => pretty!("<", left, right, indent),
+
             Expr::Add(left, right) => pretty!("+", left, right, indent),
             Expr::Sub(left, right) => pretty!("-", left, right, indent),
             Expr::Div(left, right) => pretty!("*", left, right, indent),
             Expr::Mult(left, right) => pretty!("/", left, right, indent),
+
             Expr::Negative(e) => {
                 println!("{}-", " ".repeat(indent));
                 e.pretty_recur(indent+4);
@@ -87,11 +94,9 @@ impl Expr {
                 println!("{}!", " ".repeat(indent));
                 e.pretty_recur(indent+4);
             }
+
             Expr::Literal(l) => {
                 println!("{}{:?}", " ".repeat(indent), l);
-            }
-            _ => {
-                todo!()
             }
         }
     }
@@ -129,7 +134,7 @@ mod tests {
 
     #[test]
     fn bang_literal() {
-        let tokens = tokens![(Bang, 0), (False, 0),];
+        let tokens = tokens![(Bang, 0), (False, 0)];
         let expected = Inverse(Rc::new(Literal(LiteralExpr::False)));
         assert_eq!(parse(tokens), expected);
     }
@@ -145,10 +150,29 @@ impl Parser {
         Self { tokens, idx: 0 }
     }
 
+    /* Utilities for interacting with the token array */
+    fn is_at_end(&mut self) -> bool {
+        self.idx >= self.tokens.len() - 1
+    }
+
+    fn next(&mut self) {
+        self.idx += 1;
+    }
+
+    fn peek(&mut self) -> &Token {
+        &self.tokens[self.idx]
+    }
+
+    fn consume(&mut self) -> &Token {
+        self.next();
+        &self.tokens[self.idx - 1]
+    }
+
     fn parse(&mut self) -> Expr {
         self.equality()
     }
 
+    /* The recursive descent parser itself */
     fn equality(&mut self) -> Expr {
         let mut expr = self.comparison();
         if self.is_at_end() {
@@ -263,14 +287,6 @@ impl Parser {
         expr
     }
 
-    fn is_at_end(&mut self) -> bool {
-        self.idx >= self.tokens.len() - 1
-    }
-
-    fn next(&mut self) {
-        self.idx += 1;
-    }
-
     fn unary(&mut self) -> Expr {
         let cur = &self.tokens[self.idx];
         match cur.data {
@@ -287,7 +303,7 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Expr {
-        let cur = &self.tokens[self.idx];
+        let cur = self.peek();
 
         match &cur.data {
             StringToken(s) => {
@@ -317,6 +333,20 @@ impl Parser {
             Nil => {
                 self.next();
                 Expr::Literal(LiteralExpr::Nil)
+            }
+            LeftParen => {
+                self.next(); // first move pointer past LeftParen
+
+                let expr = self.equality();
+
+                // consume RightParen too
+                let next_token = self.peek();
+                if let RightParen = next_token.data {
+                    self.next();
+                } else {
+                    panic!("expected closing parens, got {next_token:?}");
+                }
+                expr
             }
             t => panic!("unexpected token: {t:?}"),
         }
