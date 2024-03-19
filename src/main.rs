@@ -1,11 +1,12 @@
 mod error;
+mod parser;
 mod scanner;
 mod token;
 
 use clap::Parser;
 
-use std::io::{self, Write};
 use std::fs;
+use std::io::{self, Write};
 
 use error::Error;
 
@@ -24,16 +25,14 @@ fn print_prompt() {
 
 fn repl() -> Result<(), Error> {
     print_prompt();
-    let mut lineno = 0;
 
     // Line will be None if someone hits ^D
-    for line in io::stdin().lines() {
+    for (lineno, line) in io::stdin().lines().enumerate() {
         let line = line.unwrap();
 
-        let tokens = scanner::scan(line, lineno);
+        let tokens = scanner::scan(line, lineno as u32);
         println!("{:?}", tokens);
 
-        lineno += 1;
         print_prompt();
     }
 
@@ -46,8 +45,11 @@ fn read_file(fname: String) -> Result<(), Error> {
     let contents = fs::read_to_string(fname)
         .expect("Should have been able to read the file");
 
-    let tokens = scanner::scan(contents, 0);
+    let tokens = scanner::scan(contents, 0)?;
     println!("{:?}", tokens);
+
+    let ast = parser::parse(tokens);
+    ast.pretty();
 
     Ok(())
 }

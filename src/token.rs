@@ -2,13 +2,13 @@
 
 #[derive(Debug, PartialEq)]
 pub struct Token {
-    t: TokenData,
+    pub data: TokenData,
     line: u32,
 }
 
 impl Token {
     pub fn new(t: TokenData, line: u32) -> Self {
-        Self { t, line }
+        Self { data: t, line }
     }
 }
 
@@ -39,7 +39,7 @@ pub enum TokenData {
 
     // Literals.
     Identifier(String),
-    String(String),
+    StringToken(String),
     Number(f32),
 
     // Keywords.
@@ -61,4 +61,20 @@ pub enum TokenData {
     While,
 
     Eof,
+}
+
+#[cfg(test)]
+mod tests {
+    #[macro_export]
+    macro_rules! tokens {
+        ( $( ($t:expr, $l:literal) ),* $(,)? ) => {
+            {
+                let mut v = Vec::new();
+                $(
+                    v.push(Token::new($t, $l));
+                )*
+                v
+            }
+        }
+    }
 }

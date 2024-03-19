@@ -116,7 +116,7 @@ pub fn scan(text: String, starting_line: u32) -> Result<Vec<Token>, Error> {
             // string literals
             '"' => {
                 let literal = consume_until(&mut feed, '"')?;
-                tokens.push(Token::new(TokenData::String(literal), lineno));
+                tokens.push(Token::new(TokenData::StringToken(literal), lineno));
 
                 // consume closing quote
                 feed.next();
@@ -203,21 +203,10 @@ fn match_keyword(s: String) -> Result<TokenData, Error> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tokens;
     use crate::token::{Token, TokenData::*};
 
     use super::scan;
-
-    macro_rules! tokens {
-        ( $( ($t:expr, $l:literal) ),* $(,)? ) => {
-            {
-                let mut v = Vec::new();
-                $(
-                    v.push(Token::new($t, $l));
-                )*
-                v
-            }
-        }
-    }
 
     #[test]
     fn macro_test() {
@@ -279,7 +268,7 @@ mod tests {
             4.0",
             tokens![
                 (Identifier("id".to_string()), 0),
-                (String("literal".to_string()), 1),
+                (StringToken("literal".to_string()), 1),
                 (Number(123.0), 2),
                 (Number(4.0), 3),
                 (Eof, 3),
