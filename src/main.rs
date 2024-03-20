@@ -66,14 +66,18 @@ fn repl(options: Args) -> Result<(), Error> {
     // Line will be None if someone hits ^D
     for (lineno, line) in io::stdin().lines().enumerate() {
         let line = line.unwrap();
-        let line = line.trim();
+        let mut line = line.trim().to_string();
 
+        // Skip the line if there's only whitespace
         if line.is_empty() {
             print_prompt();
             continue;
         }
 
-        let tokens = scanner::scan(line, lineno as u32)?;
+        // Helpfully append a semicolon to allow bare expressions in the repl.
+        line.push(';');
+
+        let tokens = scanner::scan(&line, lineno as u32)?;
 
         match parser::parse(tokens) {
             Ok(program) => {

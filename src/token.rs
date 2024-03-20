@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub data: TokenData,
     line: u32,
@@ -12,7 +12,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenData {
     // Single-character tokens.
     LeftParen,
@@ -74,6 +74,15 @@ mod tests {
                 )*
                 v
             }
-        }
+        };
+        ( $( $t:expr $(,)? )* ) => {
+            {
+                let mut v = Vec::new();
+                $(
+                    v.push(Token::new($t, 0));
+                )*
+                v
+            }
+        };
     }
 }
