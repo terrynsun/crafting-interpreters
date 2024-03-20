@@ -1,4 +1,5 @@
 mod error;
+mod eval;
 mod expr;
 mod parser;
 mod pretty;
@@ -32,8 +33,13 @@ fn repl() -> Result<(), Error> {
     for (lineno, line) in io::stdin().lines().enumerate() {
         let line = line.unwrap();
 
-        let tokens = scanner::scan(line, lineno as u32);
-        println!("{:?}", tokens);
+        let tokens = scanner::scan(line, lineno as u32)?;
+        //println!("{:?}", tokens);
+
+        let ast = parser::parse(tokens);
+
+        let val = ast.eval();
+        println!("{val:?}");
 
         print_prompt();
     }
