@@ -1,6 +1,6 @@
-use crate::expr::Expr;
+use crate::expr::{Expr, BinOp, UnaryOp};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Number(f32),
     String(String),
@@ -8,70 +8,116 @@ pub enum Value {
     Nil,
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a == b,
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::Nil, Value::Nil) => true,
+            _ => false,
+        }
+    }
+}
+
 impl Expr {
     pub fn eval(&self) -> Value {
         match self {
-            Expr::Eq(_, _) => todo!(),
-            Expr::Neq(_, _) => todo!(),
+            Expr::Binary(op, left_expr, right_expr) => {
+                let left_val = left_expr.eval();
+                let right_val = right_expr.eval();
 
-            Expr::Gt(_, _) => todo!(),
-            Expr::GtEq(_, _) => todo!(),
-            Expr::Lt(_, _) => todo!(),
-            Expr::LtEq(_, _) => todo!(),
+                match op {
+                    BinOp::Eq => Value::Boolean(left_val == right_val),
+                    BinOp::Neq => Value::Boolean(left_val != right_val),
 
-            Expr::Add(left, right) => {
-                if let (Value::Number(a), Value::Number(b)) = (left.eval(), right.eval()) {
-                    Value::Number(a + b)
-                } else if let (Value::String(a), Value::String(b)) = (left.eval(), right.eval()) {
-                    Value::String(format!("{a}{b}"))
-                } else {
-                    panic!("runtime error: can only add numbers or strings")
+                    BinOp::Gt => {
+                        if let (Value::Number(a), Value::Number(b)) = (left_val, right_val) {
+                            Value::Boolean(a > b)
+                        } else {
+                            panic!("runtime error: can only compare numbers")
+                        }
+                    }
+                    BinOp::GtEq => {
+                        if let (Value::Number(a), Value::Number(b)) = (left_val, right_val) {
+                            Value::Boolean(a >= b)
+                        } else {
+                            panic!("runtime error: can only compare numbers")
+                        }
+                    }
+                    BinOp::Lt => {
+                        if let (Value::Number(a), Value::Number(b)) = (left_val, right_val) {
+                            Value::Boolean(a < b)
+                        } else {
+                            panic!("runtime error: can only compare numbers")
+                        }
+                    }
+                    BinOp::LtEq => {
+                        if let (Value::Number(a), Value::Number(b)) = (left_val, right_val) {
+                            Value::Boolean(a <= b)
+                        } else {
+                            panic!("runtime error: can only compare numbers")
+                        }
+                    }
+
+                    BinOp::Add => {
+                        if let (Value::Number(a), Value::Number(b)) = (&left_val, &right_val) {
+                            Value::Number(a + b)
+                        } else if let (Value::String(a), Value::String(b)) = (left_val, right_val) {
+                            Value::String(format!("{a}{b}"))
+                        } else {
+                            panic!("runtime error: can only add numbers or strings")
+                        }
+                    }
+                    BinOp::Sub => {
+                        if let (Value::Number(a), Value::Number(b)) = (left_val, right_val) {
+                            Value::Number(a - b)
+                        } else {
+                            panic!("runtime error: can only subtract numbers")
+                        }
+                    }
+                    BinOp::Div => {
+                        if let (Value::Number(a), Value::Number(b)) = (left_val, right_val) {
+                            Value::Number(a / b)
+                        } else {
+                            panic!("runtime error: can only divide numbers")
+                        }
+                    }
+                    BinOp::Mult => {
+                        if let (Value::Number(a), Value::Number(b)) = (left_val, right_val) {
+                            Value::Number(a * b)
+                        } else {
+                            panic!("runtime error: can only multiply numbers")
+                        }
+                    }
                 }
             }
 
-            Expr::Sub(left, right) => {
-                if let (Value::Number(a), Value::Number(b)) = (left.eval(), right.eval()) {
-                    Value::Number(a - b)
-                } else {
-                    panic!("runtime error: can only divide numbers")
-                }
-            }
-
-            Expr::Div(left, right) => {
-                if let (Value::Number(a), Value::Number(b)) = (left.eval(), right.eval()) {
-                    Value::Number(a / b)
-                } else {
-                    panic!("runtime error: can only divide numbers")
-                }
-            }
-            Expr::Mult(left, right) => {
-                if let (Value::Number(a), Value::Number(b)) = (left.eval(), right.eval()) {
-                    Value::Number(a*b)
-                } else {
-                    panic!("runtime error: can only multiply numbers")
-                }
-            }
-
-            Expr::Negative(e) => {
-                if let Value::Number(n) = e.eval() {
-                    Value::Number(-n)
-                } else {
-                    panic!("runtime error: - can only be applied to numbers");
-                }
-            }
-            Expr::Inverse(e) => {
-                if let Value::Boolean(b) = e.eval() {
-                    Value::Boolean(!b)
-                } else {
-                    panic!("runtime error: ! can only be applied to boolean expressions");
+            Expr::Unary(op, e) => {
+                let val = e.eval();
+                match op {
+                    UnaryOp::Negative => {
+                        if let Value::Number(n) = val {
+                            Value::Number(-n)
+                        } else {
+                            panic!("runtime error: - can only be applied to numbers");
+                        }
+                    },
+                    UnaryOp::Inverse => {
+                        if let Value::Boolean(b) = val {
+                            Value::Boolean(!b)
+                        } else {
+                            panic!("runtime error: ! can only be applied to boolean expressions");
+                        }
+                    },
                 }
             }
 
             Expr::NumberLiteral(n) => Value::Number(*n),
             Expr::StringLiteral(s) => Value::String(s.clone()),
-            Expr::TrueExpr => Value::Boolean(true),
-            Expr::FalseExpr => Value::Boolean(false),
-            Expr::NilExpr => Value::Nil,
+            Expr::True => Value::Boolean(true),
+            Expr::False => Value::Boolean(false),
+            Expr::Nil => Value::Nil,
         }
     }
 }

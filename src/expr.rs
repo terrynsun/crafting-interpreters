@@ -30,25 +30,34 @@ use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
-    Eq(Rc<Expr>, Rc<Expr>),
-    Neq(Rc<Expr>, Rc<Expr>),
-
-    Gt(Rc<Expr>, Rc<Expr>),
-    GtEq(Rc<Expr>, Rc<Expr>),
-    Lt(Rc<Expr>, Rc<Expr>),
-    LtEq(Rc<Expr>, Rc<Expr>),
-
-    Add(Rc<Expr>, Rc<Expr>),
-    Sub(Rc<Expr>, Rc<Expr>),
-    Div(Rc<Expr>, Rc<Expr>),
-    Mult(Rc<Expr>, Rc<Expr>),
-
-    Negative(Rc<Expr>),
-    Inverse(Rc<Expr>),
+    Binary(BinOp, Rc<Expr>, Rc<Expr>),
+    Unary(UnaryOp, Rc<Expr>),
 
     NumberLiteral(f32),
     StringLiteral(String),
-    TrueExpr,
-    FalseExpr,
-    NilExpr,
+
+    True,
+    False,
+    Nil,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum BinOp {
+    Eq,
+    Neq,
+    Gt,
+    GtEq,
+    Lt,
+    LtEq,
+
+    Add,
+    Sub,
+    Div,
+    Mult,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum UnaryOp {
+    Negative,
+    Inverse,
 }

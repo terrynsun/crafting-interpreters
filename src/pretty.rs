@@ -1,4 +1,4 @@
-use crate::expr::Expr;
+use crate::expr::{Expr, BinOp, UnaryOp};
 
 macro_rules! indent {
     ( $v:expr, $n:expr) => {{
@@ -6,7 +6,7 @@ macro_rules! indent {
     }};
 }
 macro_rules! pretty {
-    ( $s:literal, $left:expr, $right:expr, $indent:expr) => {{
+    ( $s:expr, $left:expr, $right:expr, $indent:expr) => {{
         $left.pretty_recur($indent + 4);
         println!("{}{}", " ".repeat($indent), $s);
         $right.pretty_recur($indent + 4);
@@ -20,33 +20,36 @@ impl Expr {
 
     pub fn pretty_recur(&self, indent: usize) {
         match self {
-            Expr::Eq(left, right) => pretty!("==", left, right, indent),
-            Expr::Neq(left, right) => pretty!("!=", left, right, indent),
-
-            Expr::Gt(left, right) => pretty!("<", left, right, indent),
-            Expr::GtEq(left, right) => pretty!("<", left, right, indent),
-            Expr::Lt(left, right) => pretty!("<", left, right, indent),
-            Expr::LtEq(left, right) => pretty!("<", left, right, indent),
-
-            Expr::Add(left, right) => pretty!("+", left, right, indent),
-            Expr::Sub(left, right) => pretty!("-", left, right, indent),
-            Expr::Div(left, right) => pretty!("*", left, right, indent),
-            Expr::Mult(left, right) => pretty!("/", left, right, indent),
-
-            Expr::Negative(e) => {
-                println!("{}-", " ".repeat(indent));
-                e.pretty_recur(indent + 4);
+            Expr::Binary(op, left, right) => {
+                let op = match op {
+                    BinOp::Eq => "==",
+                    BinOp::Neq => "!=",
+                    BinOp::Gt => ">",
+                    BinOp::GtEq => ">=",
+                    BinOp::Lt => "<",
+                    BinOp::LtEq => "<=",
+                    BinOp::Add => "+",
+                    BinOp::Sub => "-",
+                    BinOp::Div => "/",
+                    BinOp::Mult => "*",
+                };
+                pretty!(op, left, right, indent)
             }
-            Expr::Inverse(e) => {
-                println!("{}!", " ".repeat(indent));
+
+            Expr::Unary(op, e)=> {
+                let op = match op {
+                    UnaryOp::Negative => "-",
+                    UnaryOp::Inverse => "!",
+                };
+                println!("{}{}", " ".repeat(indent), op);
                 e.pretty_recur(indent + 4);
             }
 
             Expr::NumberLiteral(n) => indent!(format!("{n}"), indent),
             Expr::StringLiteral(s) => indent!(format!("{s}"), indent),
-            Expr::TrueExpr => indent!("true", indent),
-            Expr::FalseExpr => indent!("false", indent),
-            Expr::NilExpr => indent!("nil", indent),
+            Expr::True => indent!("true", indent),
+            Expr::False => indent!("false", indent),
+            Expr::Nil => indent!("nil", indent),
         }
     }
 }

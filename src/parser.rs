@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use crate::expr::Expr;
+use crate::expr::{Expr, BinOp, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -58,12 +58,12 @@ impl Parser {
                 TokenData::BangEqual => {
                     self.next();
                     let right = self.comparison();
-                    expr = Expr::Neq(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Neq, expr.clone().into(), right.into());
                 }
                 TokenData::EqualEqual => {
                     self.next();
                     let right = self.comparison();
-                    expr = Expr::Eq(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Eq, expr.clone().into(), right.into());
                 }
                 _ => break,
             }
@@ -84,22 +84,22 @@ impl Parser {
                 TokenData::Greater => {
                     self.next();
                     let right = self.factor();
-                    expr = Expr::Gt(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Gt, expr.clone().into(), right.into());
                 },
                 TokenData::GreaterEqual => {
                     self.next();
                     let right = self.factor();
-                    expr = Expr::GtEq(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::GtEq, expr.clone().into(), right.into());
                 },
                 TokenData::Less => {
                     self.next();
                     let right = self.factor();
-                    expr = Expr::Lt(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Lt, expr.clone().into(), right.into());
                 },
                 TokenData::LessEqual => {
                     self.next();
                     let right = self.factor();
-                    expr = Expr::LtEq(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::LtEq, expr.clone().into(), right.into());
                 },
                 _ => break,
             }
@@ -120,12 +120,12 @@ impl Parser {
                 TokenData::Plus => {
                     self.next();
                     let right = self.factor();
-                    expr = Expr::Add(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Add, expr.clone().into(), right.into());
                 },
                 TokenData::Minus => {
                     self.next();
                     let right = self.factor();
-                    expr = Expr::Sub(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Sub, expr.clone().into(), right.into());
                 },
                 _ => break,
             }
@@ -146,12 +146,12 @@ impl Parser {
                 TokenData::Slash => {
                     self.next();
                     let right = self.unary();
-                    expr = Expr::Div(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Div, expr.clone().into(), right.into());
                 },
                 TokenData::Star => {
                     self.next();
                     let right = self.unary();
-                    expr = Expr::Mult(expr.clone().into(), right.into());
+                    expr = Expr::Binary(BinOp::Mult, expr.clone().into(), right.into());
                 },
                 _ => break,
             }
@@ -163,13 +163,13 @@ impl Parser {
     fn unary(&mut self) -> Expr {
         let cur = &self.tokens[self.idx];
         match cur.data {
-            Bang => {
-                self.next();
-                Expr::Inverse(Rc::new(self.unary()))
-            }
             Minus => {
                 self.next();
-                Expr::Negative(Rc::new(self.unary()))
+                Expr::Unary(UnaryOp::Negative, Rc::new(self.unary()))
+            }
+            Bang => {
+                self.next();
+                Expr::Unary(UnaryOp::Inverse, Rc::new(self.unary()))
             }
             _ => self.primary(),
         }
@@ -197,15 +197,15 @@ impl Parser {
             }
             True => {
                 self.next();
-                Expr::TrueExpr
+                Expr::True
             }
             False => {
                 self.next();
-                Expr::FalseExpr
+                Expr::False
             }
             Nil => {
                 self.next();
-                Expr::NilExpr
+                Expr::Nil
             }
             LeftParen => {
                 self.next(); // first move pointer past LeftParen
@@ -230,6 +230,7 @@ impl Parser {
 mod tests {
     use std::rc::Rc;
 
+    use crate::expr::UnaryOp;
     use crate::token::{Token, TokenData, TokenData::*};
     use crate::tokens;
 
@@ -238,7 +239,7 @@ mod tests {
     #[test]
     fn bang_literal() {
         let tokens = tokens![(Bang, 0), (TokenData::False, 0)];
-        let expected = Inverse(Rc::new(FalseExpr));
+        let expected = Unary(UnaryOp::Inverse, Rc::new(False));
         assert_eq!(parse(tokens), expected);
     }
 }
