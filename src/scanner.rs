@@ -50,7 +50,7 @@ fn consume_while<I: Iterator<Item = char>, F: Fn(char) -> bool>(
     Ok(acc)
 }
 
-pub fn scan(text: String, starting_line: u32) -> Result<Vec<Token>, Error> {
+pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, Error> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut lineno = starting_line;
     let mut feed = text.chars().peekable();
@@ -222,7 +222,7 @@ mod tests {
     macro_rules! assert_tokens {
         ( $s:literal, $t:expr ) => {
             {
-                let actual_tokens = scan($s.to_string(), 0).unwrap();
+                let actual_tokens = scan($s, 0).unwrap();
                 //let expected_tokens = tokens![$t];
                 assert_eq!(actual_tokens, $t);
             }

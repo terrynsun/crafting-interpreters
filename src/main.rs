@@ -19,6 +19,10 @@ use error::Error;
 struct Args {
     /// File to run
     file: Option<String>,
+
+    /// AST debug mode
+    #[arg(long)]
+    debug_ast: bool,
 }
 
 fn print_prompt() {
@@ -26,19 +30,32 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
-fn repl() -> Result<(), Error> {
+fn repl(options: Args) -> Result<(), Error> {
     print_prompt();
 
     // Line will be None if someone hits ^D
     for (lineno, line) in io::stdin().lines().enumerate() {
         let line = line.unwrap();
+        let line = line.trim();
+
+        if line.is_empty() {
+            print_prompt();
+            continue;
+        }
 
         let tokens = scanner::scan(line, lineno as u32)?;
 
         match parser::parse(tokens) {
             Ok(ast) => {
+                if options.debug_ast {
+                    ast.pretty();
+                }
+
                 let val = ast.eval();
-                println!("{val:?}");
+                match val {
+                    Ok(v) => println!("{v:?}"),
+                    Err(e) => println!("{e}"),
+                }
             }
             Err(e) => println!("{e}"),
         }
@@ -51,18 +68,16 @@ fn repl() -> Result<(), Error> {
     Ok(())
 }
 
-fn read_file(fname: String) -> Result<(), Error> {
-    let contents = fs::read_to_string(fname).expect("Should have been able to read the file");
+fn read_file(options: Args) -> Result<(), Error> {
+    let contents = fs::read_to_string(options.file.unwrap())
+        .expect("Should have been able to read the file");
 
-    let tokens = scanner::scan(contents, 0)?;
+    let tokens = scanner::scan(&contents, 0)?;
 
-    match parser::parse(tokens) {
-        Ok(ast) => {
-            let val = ast.eval();
-            println!("{val:?}");
-        }
-        Err(e) => println!("{e}"),
-    }
+    let ast = parser::parse(tokens)
+        .map_err(|e| Error::new_with_msg(e, 0))?;
+    let val = ast.eval();
+    println!("{val:?}");
 
     Ok(())
 }
@@ -70,8 +85,8 @@ fn read_file(fname: String) -> Result<(), Error> {
 fn main() {
     let args = Args::parse();
     let err = match args.file {
-        Some(fname) => read_file(fname),
-        None => repl(),
+        Some(_) => read_file(args),
+        None => repl(args),
     };
 
     if let Err(e) = err {
