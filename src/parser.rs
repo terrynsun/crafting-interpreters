@@ -1,4 +1,4 @@
-use crate::expr::{Expr, BinOp, UnaryOp};
+use crate::expr::{BinOp, Expr, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -78,22 +78,22 @@ impl Parser {
                     self.next();
                     let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Gt, expr.clone().into(), right.into());
-                },
+                }
                 TokenData::GreaterEqual => {
                     self.next();
                     let right = self.factor()?;
                     expr = Expr::Binary(BinOp::GtEq, expr.clone().into(), right.into());
-                },
+                }
                 TokenData::Less => {
                     self.next();
                     let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Lt, expr.clone().into(), right.into());
-                },
+                }
                 TokenData::LessEqual => {
                     self.next();
                     let right = self.factor()?;
                     expr = Expr::Binary(BinOp::LtEq, expr.clone().into(), right.into());
-                },
+                }
                 _ => break,
             }
         }
@@ -114,12 +114,12 @@ impl Parser {
                     self.next();
                     let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Add, expr.clone().into(), right.into());
-                },
+                }
                 TokenData::Minus => {
                     self.next();
                     let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Sub, expr.clone().into(), right.into());
-                },
+                }
                 _ => break,
             }
         }
@@ -140,12 +140,12 @@ impl Parser {
                     self.next();
                     let right = self.unary()?;
                     expr = Expr::Binary(BinOp::Div, expr.clone().into(), right.into());
-                },
+                }
                 TokenData::Star => {
                     self.next();
                     let right = self.unary()?;
                     expr = Expr::Binary(BinOp::Mult, expr.clone().into(), right.into());
-                },
+                }
                 _ => break,
             }
         }
@@ -220,7 +220,9 @@ impl Parser {
                 if let RightParen = next_token.data {
                     self.next();
                 } else {
-                    return Err(format!("parse error: expected closing parens, got {next_token:?}"));
+                    return Err(format!(
+                        "parse error: expected closing parens, got {next_token:?}"
+                    ));
                 }
 
                 Ok(expr)
@@ -232,16 +234,92 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::expr::{UnaryOp, Expr};
+    use crate::expr::{BinOp, Expr, UnaryOp};
     use crate::token::{Token, TokenData};
     use crate::tokens;
 
     use super::parse;
 
+    macro_rules! assert_parses {
+        ( $tokens:expr, $expected:expr ) => {{
+            assert_eq!(parse($tokens).unwrap(), $expected);
+        }};
+    }
+
     #[test]
-    fn bang_literal() {
-        let tokens = tokens![(TokenData::Bang, 0), (TokenData::False, 0)];
-        let expected = Ok(Expr::Unary(UnaryOp::Inverse, Expr::False.into()));
-        assert_eq!(parse(tokens), expected);
+    fn unary() {
+        assert_parses!(
+            tokens![(TokenData::Bang, 0), (TokenData::False, 0), (TokenData::Eof, 0)],
+            Expr::Unary(UnaryOp::Inverse, Expr::False.into())
+        );
+
+        assert_parses!(
+            tokens![(TokenData::Minus, 0), (TokenData::False, 0), (TokenData::Eof, 0)],
+            Expr::Unary(UnaryOp::Negative, Expr::False.into())
+        );
+    }
+
+    #[test]
+    fn cmps() {
+        assert_parses!(
+            tokens![
+                (TokenData::True, 0),
+                (TokenData::Greater, 0),
+                (TokenData::False, 0),
+                (TokenData::Eof, 0)
+            ],
+            Expr::Binary(BinOp::Gt, Expr::True.into(), Expr::False.into())
+        );
+
+        assert_parses!(
+            tokens![
+                (TokenData::True, 0),
+                (TokenData::GreaterEqual, 0),
+                (TokenData::False, 0),
+                (TokenData::Eof, 0)
+            ],
+            Expr::Binary(BinOp::GtEq, Expr::True.into(), Expr::False.into())
+        );
+
+        assert_parses!(
+            tokens![
+                (TokenData::True, 0),
+                (TokenData::Less, 0),
+                (TokenData::False, 0),
+                (TokenData::Eof, 0)
+            ],
+            Expr::Binary(BinOp::Lt, Expr::True.into(), Expr::False.into())
+        );
+
+        assert_parses!(
+            tokens![
+                (TokenData::True, 0),
+                (TokenData::LessEqual, 0),
+                (TokenData::False, 0),
+                (TokenData::Eof, 0)
+            ],
+            Expr::Binary(BinOp::LtEq, Expr::True.into(), Expr::False.into())
+        );
+
+        // left-associativity
+        assert_parses!(
+            tokens![
+                (TokenData::Number(1.0), 0),
+                (TokenData::LessEqual, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::GreaterEqual, 0),
+                (TokenData::Number(3.0), 0),
+                (TokenData::Eof, 0)
+            ],
+            Expr::Binary(
+                BinOp::GtEq,
+                Expr::Binary(
+                    BinOp::LtEq,
+                    Expr::NumberLiteral(1.0).into(),
+                    Expr::NumberLiteral(2.0).into()
+                ).into(),
+                Expr::NumberLiteral(3.0).into()
+            )
+        );
     }
 }

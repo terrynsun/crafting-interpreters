@@ -1,4 +1,4 @@
-use crate::expr::{Expr, BinOp, UnaryOp};
+use crate::expr::{BinOp, Expr, UnaryOp};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -102,14 +102,17 @@ impl Expr {
                         } else {
                             Err("runtime error: - can only be applied to numbers".into())
                         }
-                    },
+                    }
                     UnaryOp::Inverse => {
                         if let Value::Boolean(b) = val {
                             Ok(Value::Boolean(!b))
                         } else {
-                            Err("runtime error: ! can only be applied to boolean expressions".into())
+                            Err(
+                                "runtime error: ! can only be applied to boolean expressions"
+                                    .into(),
+                            )
                         }
-                    },
+                    }
                 }
             }
 

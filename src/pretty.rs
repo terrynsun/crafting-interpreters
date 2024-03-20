@@ -1,4 +1,4 @@
-use crate::expr::{Expr, BinOp, UnaryOp};
+use crate::expr::{BinOp, Expr, UnaryOp};
 
 macro_rules! indent {
     ( $v:expr, $n:expr) => {{
@@ -36,7 +36,7 @@ impl Expr {
                 pretty!(op, left, right, indent)
             }
 
-            Expr::Unary(op, e)=> {
+            Expr::Unary(op, e) => {
                 let op = match op {
                     UnaryOp::Negative => "-",
                     UnaryOp::Inverse => "!",

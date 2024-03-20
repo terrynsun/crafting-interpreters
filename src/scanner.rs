@@ -203,8 +203,8 @@ fn match_keyword(s: String) -> Result<TokenData, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tokens;
     use crate::token::{Token, TokenData::*};
+    use crate::tokens;
 
     use super::scan;
 
