@@ -37,7 +37,6 @@ pub enum TokenData {
     Less,
     LessEqual,
 
-    // Literals.
     Identifier(String),
     StringToken(String),
     Number(f32),

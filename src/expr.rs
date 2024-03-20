@@ -34,6 +34,7 @@ pub enum Expr {
     Unary(UnaryOp, Rc<Expr>),
 
     NumberLiteral(f32),
+    Identifier(String),
     StringLiteral(String),
 
     True,

@@ -45,8 +45,9 @@ impl Expr {
                 e.pretty_recur(indent + 4);
             }
 
+            Expr::Identifier(s) => indent!(format!("{s}"), indent),
+            Expr::StringLiteral(s) => indent!(format!("\"{s}\""), indent),
             Expr::NumberLiteral(n) => indent!(format!("{n}"), indent),
-            Expr::StringLiteral(s) => indent!(format!("{s}"), indent),
             Expr::True => indent!("true", indent),
             Expr::False => indent!("false", indent),
             Expr::Nil => indent!("nil", indent),

@@ -34,12 +34,14 @@ fn repl() -> Result<(), Error> {
         let line = line.unwrap();
 
         let tokens = scanner::scan(line, lineno as u32)?;
-        //println!("{:?}", tokens);
 
-        let ast = parser::parse(tokens);
-
-        let val = ast.eval();
-        println!("{val:?}");
+        match parser::parse(tokens) {
+            Ok(ast) => {
+                let val = ast.eval();
+                println!("{val:?}");
+            }
+            Err(e) => println!("{e}"),
+        }
 
         print_prompt();
     }
@@ -53,10 +55,14 @@ fn read_file(fname: String) -> Result<(), Error> {
     let contents = fs::read_to_string(fname).expect("Should have been able to read the file");
 
     let tokens = scanner::scan(contents, 0)?;
-    println!("{:?}", tokens);
 
-    let ast = parser::parse(tokens);
-    ast.pretty();
+    match parser::parse(tokens) {
+        Ok(ast) => {
+            let val = ast.eval();
+            println!("{val:?}");
+        }
+        Err(e) => println!("{e}"),
+    }
 
     Ok(())
 }

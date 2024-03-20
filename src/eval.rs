@@ -113,8 +113,9 @@ impl Expr {
                 }
             }
 
-            Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
+            Expr::Identifier(_) => Err("runtime error: identifiers not supported yet".into()),
             Expr::StringLiteral(s) => Ok(Value::String(s.clone())),
+            Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
             Expr::True => Ok(Value::Boolean(true)),
             Expr::False => Ok(Value::Boolean(false)),
             Expr::Nil => Ok(Value::Nil),

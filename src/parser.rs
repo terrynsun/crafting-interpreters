@@ -1,14 +1,12 @@
-#![allow(dead_code)]
-
-use std::rc::Rc;
-
 use crate::expr::{Expr, BinOp, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
 };
 
-pub fn parse(tokens: Vec<Token>) -> Expr {
+type ParseError = String;
+
+pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParseError> {
     let mut p = Parser::new(tokens);
     p.parse()
 }
@@ -36,20 +34,15 @@ impl Parser {
         &self.tokens[self.idx]
     }
 
-    fn consume(&mut self) -> &Token {
-        self.next();
-        &self.tokens[self.idx - 1]
-    }
-
-    fn parse(&mut self) -> Expr {
+    fn parse(&mut self) -> Result<Expr, ParseError> {
         self.equality()
     }
 
     /* The recursive descent parser itself */
-    fn equality(&mut self) -> Expr {
-        let mut expr = self.comparison();
+    fn equality(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.comparison()?;
         if self.is_at_end() {
-            return expr;
+            return Ok(expr);
         }
 
         loop {
@@ -57,25 +50,25 @@ impl Parser {
             match &next.data {
                 TokenData::BangEqual => {
                     self.next();
-                    let right = self.comparison();
+                    let right = self.comparison()?;
                     expr = Expr::Binary(BinOp::Neq, expr.clone().into(), right.into());
                 }
                 TokenData::EqualEqual => {
                     self.next();
-                    let right = self.comparison();
+                    let right = self.comparison()?;
                     expr = Expr::Binary(BinOp::Eq, expr.clone().into(), right.into());
                 }
                 _ => break,
             }
         }
 
-        expr
+        Ok(expr)
     }
 
-    fn comparison(&mut self) -> Expr {
-        let mut expr = self.term();
+    fn comparison(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.term()?;
         if self.is_at_end() {
-            return expr;
+            return Ok(expr);
         }
 
         loop {
@@ -83,35 +76,35 @@ impl Parser {
             match &next.data {
                 TokenData::Greater => {
                     self.next();
-                    let right = self.factor();
+                    let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Gt, expr.clone().into(), right.into());
                 },
                 TokenData::GreaterEqual => {
                     self.next();
-                    let right = self.factor();
+                    let right = self.factor()?;
                     expr = Expr::Binary(BinOp::GtEq, expr.clone().into(), right.into());
                 },
                 TokenData::Less => {
                     self.next();
-                    let right = self.factor();
+                    let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Lt, expr.clone().into(), right.into());
                 },
                 TokenData::LessEqual => {
                     self.next();
-                    let right = self.factor();
+                    let right = self.factor()?;
                     expr = Expr::Binary(BinOp::LtEq, expr.clone().into(), right.into());
                 },
                 _ => break,
             }
         }
 
-        expr
+        Ok(expr)
     }
 
-    fn term(&mut self) -> Expr {
-        let mut expr = self.factor();
+    fn term(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.factor()?;
         if self.is_at_end() {
-            return expr;
+            return Ok(expr);
         }
 
         loop {
@@ -119,25 +112,25 @@ impl Parser {
             match &next.data {
                 TokenData::Plus => {
                     self.next();
-                    let right = self.factor();
+                    let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Add, expr.clone().into(), right.into());
                 },
                 TokenData::Minus => {
                     self.next();
-                    let right = self.factor();
+                    let right = self.factor()?;
                     expr = Expr::Binary(BinOp::Sub, expr.clone().into(), right.into());
                 },
                 _ => break,
             }
         }
 
-        expr
+        Ok(expr)
     }
 
-    fn factor(&mut self) -> Expr {
-        let mut expr = self.unary();
+    fn factor(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.unary()?;
         if self.is_at_end() {
-            return expr;
+            return Ok(expr);
         }
 
         loop {
@@ -145,47 +138,57 @@ impl Parser {
             match &next.data {
                 TokenData::Slash => {
                     self.next();
-                    let right = self.unary();
+                    let right = self.unary()?;
                     expr = Expr::Binary(BinOp::Div, expr.clone().into(), right.into());
                 },
                 TokenData::Star => {
                     self.next();
-                    let right = self.unary();
+                    let right = self.unary()?;
                     expr = Expr::Binary(BinOp::Mult, expr.clone().into(), right.into());
                 },
                 _ => break,
             }
         }
 
-        expr
+        Ok(expr)
     }
 
-    fn unary(&mut self) -> Expr {
+    fn unary(&mut self) -> Result<Expr, ParseError> {
         let cur = &self.tokens[self.idx];
         match cur.data {
             Minus => {
                 self.next();
-                Expr::Unary(UnaryOp::Negative, Rc::new(self.unary()))
+                let e = self.unary()?;
+                Ok(Expr::Unary(UnaryOp::Negative, e.into()))
             }
             Bang => {
                 self.next();
-                Expr::Unary(UnaryOp::Inverse, Rc::new(self.unary()))
+                let e = self.unary()?;
+                Ok(Expr::Unary(UnaryOp::Inverse, e.into()))
             }
-            _ => self.primary(),
+            _ => Ok(self.primary()?),
         }
     }
 
-    fn primary(&mut self) -> Expr {
+    fn primary(&mut self) -> Result<Expr, ParseError> {
         let cur = self.peek();
 
         match &cur.data {
+            Identifier(s) => {
+                // clone the string out of the immutable borrow before modifying self
+                let ret = Expr::Identifier(s.clone());
+
+                self.next();
+
+                Ok(ret)
+            }
             StringToken(s) => {
-                // clone the literal out of the immutable borrow before modifying self
+                // clone the string out of the immutable borrow before modifying self
                 let ret = Expr::StringLiteral(s.clone());
 
                 self.next();
 
-                ret
+                Ok(ret)
             }
             Number(n) => {
                 // copy the literal out of the immutable borrow before modifying self
@@ -193,53 +196,52 @@ impl Parser {
 
                 self.next();
 
-                ret
+                Ok(ret)
             }
             True => {
                 self.next();
-                Expr::True
+                Ok(Expr::True)
             }
             False => {
                 self.next();
-                Expr::False
+                Ok(Expr::False)
             }
             Nil => {
                 self.next();
-                Expr::Nil
+                Ok(Expr::Nil)
             }
             LeftParen => {
                 self.next(); // first move pointer past LeftParen
 
-                let expr = self.equality();
+                let expr = self.equality()?;
 
                 // consume RightParen too
                 let next_token = self.peek();
                 if let RightParen = next_token.data {
                     self.next();
                 } else {
-                    panic!("expected closing parens, got {next_token:?}");
+                    return Err(format!("parse error: expected closing parens, got {next_token:?}"));
                 }
-                expr
+
+                Ok(expr)
             }
-            t => panic!("unexpected token: {t:?}"),
+            t => Err(format!("parse error: unexpected token: {t:?}")),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
-    use crate::expr::UnaryOp;
-    use crate::token::{Token, TokenData, TokenData::*};
+    use crate::expr::{UnaryOp, Expr};
+    use crate::token::{Token, TokenData};
     use crate::tokens;
 
-    use super::{parse, Expr::*};
+    use super::parse;
 
     #[test]
     fn bang_literal() {
-        let tokens = tokens![(Bang, 0), (TokenData::False, 0)];
-        let expected = Unary(UnaryOp::Inverse, Rc::new(False));
+        let tokens = tokens![(TokenData::Bang, 0), (TokenData::False, 0)];
+        let expected = Ok(Expr::Unary(UnaryOp::Inverse, Expr::False.into()));
         assert_eq!(parse(tokens), expected);
     }
 }
