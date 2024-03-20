@@ -1,4 +1,4 @@
-use crate::expr::{BinOp, Expr, UnaryOp};
+use crate::expr::{BinOp, Expr, Program, Stmt, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -6,7 +6,7 @@ use crate::token::{
 
 type ParseError = String;
 
-pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParseError> {
+pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
     let mut p = Parser::new(tokens);
     p.parse()
 }
@@ -34,7 +34,48 @@ impl Parser {
         &self.tokens[self.idx]
     }
 
-    fn parse(&mut self) -> Result<Expr, ParseError> {
+    fn expect(&mut self, expected: TokenData, err: &'static str) -> Result<(), ParseError> {
+        let next_token = self.peek();
+        if expected == next_token.data {
+            self.next();
+            Ok(())
+        } else {
+            Err(format!("parse error: expected {err}, got {next_token:?}"))
+        }
+    }
+
+    fn parse(&mut self) -> Result<Program, ParseError> {
+        let mut program = vec![];
+
+        while !self.is_at_end() {
+            let expr = self.statement()?;
+            program.push(expr);
+        }
+
+        Ok(program)
+    }
+
+    fn statement(&mut self) -> Result<Stmt, ParseError> {
+        let stmt = match self.peek().data {
+            Print => {
+                self.next();
+
+                let inner = self.parse_expression()?;
+                Stmt::PrintStmt(inner)
+            }
+            _ => {
+                let inner = self.parse_expression()?;
+                Stmt::Expr(inner)
+            }
+        };
+
+        // consume semicolon
+        self.next();
+
+        Ok(stmt)
+    }
+
+    fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         self.equality()
     }
 
@@ -216,17 +257,11 @@ impl Parser {
                 let expr = self.equality()?;
 
                 // consume RightParen too
-                let next_token = self.peek();
-                if let RightParen = next_token.data {
-                    self.next();
-                } else {
-                    return Err(format!(
-                        "parse error: expected closing parens, got {next_token:?}"
-                    ));
-                }
+                self.expect(TokenData::RightParen, "closing parens")?;
 
                 Ok(expr)
             }
+            Eof => Err("parse error: unexpected end of file".to_string()),
             t => Err(format!("parse error: unexpected token: {t:?}")),
         }
     }
@@ -234,34 +269,71 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::expr::{BinOp, Expr, UnaryOp};
+    use crate::expr::{BinOp, Expr, Stmt, UnaryOp};
     use crate::token::{Token, TokenData};
     use crate::tokens;
 
     use super::parse;
 
-    macro_rules! assert_parses {
+    macro_rules! parse_expr {
         ( $tokens:expr, $expected:expr ) => {{
-            assert_eq!(parse($tokens).unwrap(), $expected);
+            let program = parse($tokens).unwrap();
+            assert_eq!(program[0], Stmt::Expr($expected));
         }};
     }
 
     #[test]
+    fn literals() {
+        parse_expr!(
+            tokens![(TokenData::True, 0), (TokenData::Eof, 0)],
+            Expr::True
+        );
+
+        parse_expr!(
+            tokens![(TokenData::False, 0), (TokenData::Eof, 0)],
+            Expr::False
+        );
+
+        parse_expr!(tokens![(TokenData::Nil, 0), (TokenData::Eof, 0)], Expr::Nil);
+
+        parse_expr!(
+            tokens![(TokenData::Number(1.0), 0), (TokenData::Eof, 0)],
+            Expr::NumberLiteral(1.0)
+        );
+
+        parse_expr!(
+            tokens![
+                (TokenData::StringToken("foo".to_string()), 0),
+                (TokenData::Eof, 0)
+            ],
+            Expr::StringLiteral("foo".to_string())
+        );
+    }
+
+    #[test]
     fn unary() {
-        assert_parses!(
-            tokens![(TokenData::Bang, 0), (TokenData::False, 0), (TokenData::Eof, 0)],
+        parse_expr!(
+            tokens![
+                (TokenData::Bang, 0),
+                (TokenData::False, 0),
+                (TokenData::Eof, 0)
+            ],
             Expr::Unary(UnaryOp::Inverse, Expr::False.into())
         );
 
-        assert_parses!(
-            tokens![(TokenData::Minus, 0), (TokenData::False, 0), (TokenData::Eof, 0)],
+        parse_expr!(
+            tokens![
+                (TokenData::Minus, 0),
+                (TokenData::False, 0),
+                (TokenData::Eof, 0)
+            ],
             Expr::Unary(UnaryOp::Negative, Expr::False.into())
         );
     }
 
     #[test]
     fn cmps() {
-        assert_parses!(
+        parse_expr!(
             tokens![
                 (TokenData::True, 0),
                 (TokenData::Greater, 0),
@@ -271,7 +343,7 @@ mod tests {
             Expr::Binary(BinOp::Gt, Expr::True.into(), Expr::False.into())
         );
 
-        assert_parses!(
+        parse_expr!(
             tokens![
                 (TokenData::True, 0),
                 (TokenData::GreaterEqual, 0),
@@ -281,7 +353,7 @@ mod tests {
             Expr::Binary(BinOp::GtEq, Expr::True.into(), Expr::False.into())
         );
 
-        assert_parses!(
+        parse_expr!(
             tokens![
                 (TokenData::True, 0),
                 (TokenData::Less, 0),
@@ -291,7 +363,7 @@ mod tests {
             Expr::Binary(BinOp::Lt, Expr::True.into(), Expr::False.into())
         );
 
-        assert_parses!(
+        parse_expr!(
             tokens![
                 (TokenData::True, 0),
                 (TokenData::LessEqual, 0),
@@ -302,7 +374,7 @@ mod tests {
         );
 
         // left-associativity
-        assert_parses!(
+        parse_expr!(
             tokens![
                 (TokenData::Number(1.0), 0),
                 (TokenData::LessEqual, 0),

@@ -7,6 +7,7 @@ mod scanner;
 mod token;
 
 use clap::Parser;
+use expr::Program;
 
 use std::fs;
 use std::io::{self, Write};
@@ -30,6 +31,35 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
+fn exec_program(program: Program, options: &Args) {
+    for stmt in program {
+        match stmt {
+            expr::Stmt::Expr(e) => {
+                if options.debug_ast {
+                    e.pretty();
+                }
+
+                let val = e.eval();
+                match val {
+                    Ok(_v) => (),
+                    Err(e) => println!("{e}"),
+                }
+            }
+            expr::Stmt::PrintStmt(e) => {
+                if options.debug_ast {
+                    e.pretty();
+                }
+
+                let val = e.eval();
+                match val {
+                    Ok(v) => println!("{v:?}"),
+                    Err(e) => println!("{e}"),
+                }
+            }
+        }
+    }
+}
+
 fn repl(options: Args) -> Result<(), Error> {
     print_prompt();
 
@@ -46,16 +76,8 @@ fn repl(options: Args) -> Result<(), Error> {
         let tokens = scanner::scan(line, lineno as u32)?;
 
         match parser::parse(tokens) {
-            Ok(ast) => {
-                if options.debug_ast {
-                    ast.pretty();
-                }
-
-                let val = ast.eval();
-                match val {
-                    Ok(v) => println!("{v:?}"),
-                    Err(e) => println!("{e}"),
-                }
+            Ok(program) => {
+                exec_program(program, &options);
             }
             Err(e) => println!("{e}"),
         }
@@ -69,15 +91,15 @@ fn repl(options: Args) -> Result<(), Error> {
 }
 
 fn read_file(options: Args) -> Result<(), Error> {
-    let contents = fs::read_to_string(options.file.unwrap())
+    let contents = fs::read_to_string(options.file.clone().unwrap())
         .expect("Should have been able to read the file");
 
     let tokens = scanner::scan(&contents, 0)?;
 
-    let ast = parser::parse(tokens)
+    let program = parser::parse(tokens)
         .map_err(|e| Error::new_with_msg(e, 0))?;
-    let val = ast.eval();
-    println!("{val:?}");
+
+    exec_program(program, &options);
 
     Ok(())
 }

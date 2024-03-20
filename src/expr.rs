@@ -62,3 +62,19 @@ pub enum UnaryOp {
     Negative,
     Inverse,
 }
+
+// program        → statement* EOF ;
+//
+// statement      → exprStmt
+//                | printStmt ;
+//
+// exprStmt       → expression ";" ;
+// printStmt      → "print" expression ";" ;
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Stmt {
+    Expr(Expr),
+    PrintStmt(Expr),
+}
+
+pub type Program = Vec<Stmt>;
