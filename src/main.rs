@@ -1,5 +1,7 @@
 mod error;
+mod expr;
 mod parser;
+mod pretty;
 mod scanner;
 mod token;
 
@@ -42,8 +44,7 @@ fn repl() -> Result<(), Error> {
 }
 
 fn read_file(fname: String) -> Result<(), Error> {
-    let contents = fs::read_to_string(fname)
-        .expect("Should have been able to read the file");
+    let contents = fs::read_to_string(fname).expect("Should have been able to read the file");
 
     let tokens = scanner::scan(contents, 0)?;
     println!("{:?}", tokens);
@@ -57,12 +58,8 @@ fn read_file(fname: String) -> Result<(), Error> {
 fn main() {
     let args = Args::parse();
     let err = match args.file {
-        Some(fname) => {
-            read_file(fname)
-        },
-        None => {
-            repl()
-        }
+        Some(fname) => read_file(fname),
+        None => repl(),
     };
 
     if let Err(e) = err {

@@ -2,142 +2,15 @@
 
 use std::rc::Rc;
 
+use crate::expr::{Expr, LiteralExpr};
 use crate::token::{
     Token,
     TokenData::{self, *},
 };
 
-// expression     → literal
-//                | unary
-//                | binary
-//                | grouping ;
-//
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-// grouping       → "(" expression ")" ;
-// unary          → ( "-" | "!" ) expression ;
-// binary         → expression operator expression ;
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
-
-// Precedence: (lowest = highest)
-//
-// Equality (== !=)
-// Comparison (> >= < <=)
-// Term (- +)
-// Factor (/ *)
-// Unary (! -)
-//
-// expression     → equality
-// equality       → comparison ( (!= | ==) comparison )*
-// comparison     → term (( "<>" etc ) term)*
-// term           → factor (( "-" | "+" ) factor)*
-// factor         → unary ( ("/" | "*") unary )*
-// unary          → ("!" | "-") unary | primary
-// primary        → literal | "(" expression ")"
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Expr {
-    Eq(Rc<Expr>, Rc<Expr>),
-    Neq(Rc<Expr>, Rc<Expr>),
-
-    Gt(Rc<Expr>, Rc<Expr>),
-    GtEq(Rc<Expr>, Rc<Expr>),
-    Lt(Rc<Expr>, Rc<Expr>),
-    LtEq(Rc<Expr>, Rc<Expr>),
-
-    Add(Rc<Expr>, Rc<Expr>),
-    Sub(Rc<Expr>, Rc<Expr>),
-    Div(Rc<Expr>, Rc<Expr>),
-    Mult(Rc<Expr>, Rc<Expr>),
-
-    Negative(Rc<Expr>),
-    Inverse(Rc<Expr>),
-
-    Literal(LiteralExpr),
-}
-
-macro_rules! pretty {
-    ( $s:literal, $left:expr, $right:expr, $indent:expr) => {
-        {
-            $left.pretty_recur($indent+4);
-            println!("{}{}", " ".repeat($indent), $s);
-            $right.pretty_recur($indent+4);
-        }
-    }
-}
-
-impl Expr {
-    pub fn pretty(&self) {
-        self.pretty_recur(0)
-    }
-
-    pub fn pretty_recur(&self, indent: usize) {
-        match self {
-            Expr::Eq(left, right) => pretty!("==", left, right, indent),
-            Expr::Neq(left, right) => pretty!("!=", left, right, indent),
-
-            Expr::Gt(left, right) => pretty!("<", left, right, indent),
-            Expr::GtEq(left, right) => pretty!("<", left, right, indent),
-            Expr::Lt(left, right) => pretty!("<", left, right, indent),
-            Expr::LtEq(left, right) => pretty!("<", left, right, indent),
-
-            Expr::Add(left, right) => pretty!("+", left, right, indent),
-            Expr::Sub(left, right) => pretty!("-", left, right, indent),
-            Expr::Div(left, right) => pretty!("*", left, right, indent),
-            Expr::Mult(left, right) => pretty!("/", left, right, indent),
-
-            Expr::Negative(e) => {
-                println!("{}-", " ".repeat(indent));
-                e.pretty_recur(indent+4);
-            }
-            Expr::Inverse(e) => {
-                println!("{}!", " ".repeat(indent));
-                e.pretty_recur(indent+4);
-            }
-
-            Expr::Literal(l) => {
-                println!("{}{:?}", " ".repeat(indent), l);
-            }
-        }
-    }
-}
-
-#[derive(Clone, PartialEq)]
-pub enum LiteralExpr {
-    NumberLiteral(f32),
-    StringLiteral(String),
-    True,
-    False,
-    Nil,
-}
-
-impl std::fmt::Debug for LiteralExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LiteralExpr::NumberLiteral(n) => write!(f, "{}", n),
-            LiteralExpr::StringLiteral(s) => write!(f, "{}", s),
-            LiteralExpr::True => write!(f, "true"),
-            LiteralExpr::False => write!(f, "false"),
-            LiteralExpr::Nil => write!(f, "nil"),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::rc::Rc;
-
-    use crate::token::{Token, TokenData::*};
-    use crate::tokens;
-
-    use super::{parse, Expr::*, LiteralExpr};
-
-    #[test]
-    fn bang_literal() {
-        let tokens = tokens![(Bang, 0), (False, 0)];
-        let expected = Inverse(Rc::new(Literal(LiteralExpr::False)));
-        assert_eq!(parse(tokens), expected);
-    }
+pub fn parse(tokens: Vec<Token>) -> Expr {
+    let mut p = Parser::new(tokens);
+    p.parse()
 }
 
 struct Parser {
@@ -186,12 +59,12 @@ impl Parser {
                     self.next();
                     let right = self.comparison();
                     expr = Expr::Neq(expr.clone().into(), right.into());
-                },
+                }
                 TokenData::EqualEqual => {
                     self.next();
                     let right = self.comparison();
                     expr = Expr::Eq(expr.clone().into(), right.into());
-                },
+                }
                 _ => break,
             }
         }
@@ -353,7 +226,19 @@ impl Parser {
     }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Expr {
-    let mut p = Parser::new(tokens);
-    p.parse()
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use crate::token::{Token, TokenData::*};
+    use crate::tokens;
+
+    use super::{parse, Expr::*, LiteralExpr};
+
+    #[test]
+    fn bang_literal() {
+        let tokens = tokens![(Bang, 0), (False, 0)];
+        let expected = Inverse(Rc::new(Literal(LiteralExpr::False)));
+        assert_eq!(parse(tokens), expected);
+    }
 }
