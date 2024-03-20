@@ -304,7 +304,7 @@ mod tests {
         parse_expr!(
             tokens![
                 (TokenData::StringToken("foo".to_string()), 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::StringLiteral("foo".to_string())
         );
@@ -316,7 +316,7 @@ mod tests {
             tokens![
                 (TokenData::Bang, 0),
                 (TokenData::False, 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::Unary(UnaryOp::Inverse, Expr::False.into())
         );
@@ -325,7 +325,7 @@ mod tests {
             tokens![
                 (TokenData::Minus, 0),
                 (TokenData::False, 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::Unary(UnaryOp::Negative, Expr::False.into())
         );
@@ -338,7 +338,7 @@ mod tests {
                 (TokenData::True, 0),
                 (TokenData::Greater, 0),
                 (TokenData::False, 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::Binary(BinOp::Gt, Expr::True.into(), Expr::False.into())
         );
@@ -348,7 +348,7 @@ mod tests {
                 (TokenData::True, 0),
                 (TokenData::GreaterEqual, 0),
                 (TokenData::False, 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::Binary(BinOp::GtEq, Expr::True.into(), Expr::False.into())
         );
@@ -358,7 +358,7 @@ mod tests {
                 (TokenData::True, 0),
                 (TokenData::Less, 0),
                 (TokenData::False, 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::Binary(BinOp::Lt, Expr::True.into(), Expr::False.into())
         );
@@ -368,7 +368,7 @@ mod tests {
                 (TokenData::True, 0),
                 (TokenData::LessEqual, 0),
                 (TokenData::False, 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::Binary(BinOp::LtEq, Expr::True.into(), Expr::False.into())
         );
@@ -381,16 +381,146 @@ mod tests {
                 (TokenData::Number(2.0), 0),
                 (TokenData::GreaterEqual, 0),
                 (TokenData::Number(3.0), 0),
-                (TokenData::Eof, 0)
+                (TokenData::Eof, 0),
             ],
             Expr::Binary(
                 BinOp::GtEq,
                 Expr::Binary(
                     BinOp::LtEq,
                     Expr::NumberLiteral(1.0).into(),
-                    Expr::NumberLiteral(2.0).into()
-                ).into(),
+                    Expr::NumberLiteral(2.0).into(),
+                )
+                .into(),
                 Expr::NumberLiteral(3.0).into()
+            )
+        );
+    }
+
+    #[test]
+    fn math() {
+        parse_expr!(
+            tokens![
+                (TokenData::Number(1.0), 0),
+                (TokenData::Plus, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::Eof, 0),
+            ],
+            Expr::Binary(
+                BinOp::Add,
+                Expr::NumberLiteral(1.0).into(),
+                Expr::NumberLiteral(2.0).into(),
+            )
+        );
+
+        parse_expr!(
+            tokens![
+                (TokenData::Number(1.0), 0),
+                (TokenData::Minus, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::Eof, 0),
+            ],
+            Expr::Binary(
+                BinOp::Sub,
+                Expr::NumberLiteral(1.0).into(),
+                Expr::NumberLiteral(2.0).into(),
+            )
+        );
+
+        parse_expr!(
+            tokens![
+                (TokenData::Number(1.0), 0),
+                (TokenData::Slash, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::Eof, 0),
+            ],
+            Expr::Binary(
+                BinOp::Div,
+                Expr::NumberLiteral(1.0).into(),
+                Expr::NumberLiteral(2.0).into(),
+            )
+        );
+
+        parse_expr!(
+            tokens![
+                (TokenData::Number(1.0), 0),
+                (TokenData::Star, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::Eof, 0),
+            ],
+            Expr::Binary(
+                BinOp::Mult,
+                Expr::NumberLiteral(1.0).into(),
+                Expr::NumberLiteral(2.0).into(),
+            )
+        );
+
+        // left-associative on same operator
+        parse_expr!(
+            tokens![
+                (TokenData::Number(1.0), 0),
+                (TokenData::Star, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::Star, 0),
+                (TokenData::Number(3.0), 0),
+                (TokenData::Eof, 0),
+            ],
+            Expr::Binary(
+                BinOp::Mult,
+                Expr::Binary(
+                    BinOp::Mult,
+                    Expr::NumberLiteral(1.0).into(),
+                    Expr::NumberLiteral(2.0).into(),
+                )
+                .into(),
+                Expr::NumberLiteral(3.0).into(),
+            )
+        );
+
+        // mult takes precedence over add
+        parse_expr!(
+            tokens![
+                (TokenData::Number(1.0), 0),
+                (TokenData::Plus, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::Star, 0),
+                (TokenData::Number(3.0), 0),
+                (TokenData::Eof, 0),
+            ],
+            Expr::Binary(
+                BinOp::Add,
+                Expr::NumberLiteral(1.0).into(),
+                Expr::Binary(
+                    BinOp::Mult,
+                    Expr::NumberLiteral(2.0).into(),
+                    Expr::NumberLiteral(3.0).into(),
+                )
+                .into(),
+            )
+        );
+    }
+
+    #[test]
+    fn grouping() {
+        parse_expr!(
+            tokens![
+                (TokenData::LeftParen, 0),
+                (TokenData::Number(1.0), 0),
+                (TokenData::Plus, 0),
+                (TokenData::Number(2.0), 0),
+                (TokenData::RightParen, 0),
+                (TokenData::Star, 0),
+                (TokenData::Number(3.0), 0),
+                (TokenData::Eof, 0),
+            ],
+            Expr::Binary(
+                BinOp::Mult,
+                Expr::Binary(
+                    BinOp::Add,
+                    Expr::NumberLiteral(1.0).into(),
+                    Expr::NumberLiteral(2.0).into(),
+                )
+                .into(),
+                Expr::NumberLiteral(3.0).into(),
             )
         );
     }
