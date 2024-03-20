@@ -46,14 +46,9 @@ pub enum Expr {
     Negative(Rc<Expr>),
     Inverse(Rc<Expr>),
 
-    Literal(LiteralExpr),
-}
-
-#[derive(Clone, PartialEq)]
-pub enum LiteralExpr {
     NumberLiteral(f32),
     StringLiteral(String),
-    True,
-    False,
-    Nil,
+    TrueExpr,
+    FalseExpr,
+    NilExpr,
 }

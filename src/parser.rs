@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use crate::expr::{Expr, LiteralExpr};
+use crate::expr::Expr;
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -181,7 +181,7 @@ impl Parser {
         match &cur.data {
             StringToken(s) => {
                 // clone the literal out of the immutable borrow before modifying self
-                let ret = Expr::Literal(LiteralExpr::StringLiteral(s.clone()));
+                let ret = Expr::StringLiteral(s.clone());
 
                 self.next();
 
@@ -189,7 +189,7 @@ impl Parser {
             }
             Number(n) => {
                 // copy the literal out of the immutable borrow before modifying self
-                let ret = Expr::Literal(LiteralExpr::NumberLiteral(*n));
+                let ret = Expr::NumberLiteral(*n);
 
                 self.next();
 
@@ -197,15 +197,15 @@ impl Parser {
             }
             True => {
                 self.next();
-                Expr::Literal(LiteralExpr::True)
+                Expr::TrueExpr
             }
             False => {
                 self.next();
-                Expr::Literal(LiteralExpr::False)
+                Expr::FalseExpr
             }
             Nil => {
                 self.next();
-                Expr::Literal(LiteralExpr::Nil)
+                Expr::NilExpr
             }
             LeftParen => {
                 self.next(); // first move pointer past LeftParen
@@ -230,15 +230,15 @@ impl Parser {
 mod tests {
     use std::rc::Rc;
 
-    use crate::token::{Token, TokenData::*};
+    use crate::token::{Token, TokenData, TokenData::*};
     use crate::tokens;
 
-    use super::{parse, Expr::*, LiteralExpr};
+    use super::{parse, Expr::*};
 
     #[test]
     fn bang_literal() {
-        let tokens = tokens![(Bang, 0), (False, 0)];
-        let expected = Inverse(Rc::new(Literal(LiteralExpr::False)));
+        let tokens = tokens![(Bang, 0), (TokenData::False, 0)];
+        let expected = Inverse(Rc::new(FalseExpr));
         assert_eq!(parse(tokens), expected);
     }
 }

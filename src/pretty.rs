@@ -1,17 +1,10 @@
-use crate::expr::{Expr, LiteralExpr};
+use crate::expr::Expr;
 
-impl std::fmt::Debug for LiteralExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LiteralExpr::NumberLiteral(n) => write!(f, "{}", n),
-            LiteralExpr::StringLiteral(s) => write!(f, "{}", s),
-            LiteralExpr::True => write!(f, "true"),
-            LiteralExpr::False => write!(f, "false"),
-            LiteralExpr::Nil => write!(f, "nil"),
-        }
-    }
+macro_rules! indent {
+    ( $v:expr, $n:expr) => {{
+        println!("{}{}", " ".repeat($n), $v);
+    }};
 }
-
 macro_rules! pretty {
     ( $s:literal, $left:expr, $right:expr, $indent:expr) => {{
         $left.pretty_recur($indent + 4);
@@ -49,9 +42,11 @@ impl Expr {
                 e.pretty_recur(indent + 4);
             }
 
-            Expr::Literal(l) => {
-                println!("{}{:?}", " ".repeat(indent), l);
-            }
+            Expr::NumberLiteral(n) => indent!(format!("{n}"), indent),
+            Expr::StringLiteral(s) => indent!(format!("{s}"), indent),
+            Expr::TrueExpr => indent!("true", indent),
+            Expr::FalseExpr => indent!("false", indent),
+            Expr::NilExpr => indent!("nil", indent),
         }
     }
 }
