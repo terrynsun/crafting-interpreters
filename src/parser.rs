@@ -63,12 +63,23 @@ impl Parser {
                 Err(e) => {
                     err_state.add(e);
                     loop {
-                        if let Semicolon = self.peek().data {
-                            self.next();
-                            break;
-                        } else {
-                            println!("err @ {:?} -- incrementing", self.peek());
-                            self.next();
+                        let next = self.peek();
+                        match next.data {
+                            Semicolon => {
+                                // End of statement. Break out of error recovery and try to parse
+                                // next statement.
+                                self.next();
+                                break;
+                            }
+                            Eof => {
+                                // End of file.
+                                break;
+                            }
+                            _ => {
+                                println!("err @ {:?} -- incrementing", next);
+                                // Keep skipping forward.
+                                self.next();
+                            }
                         }
                     }
                 }
