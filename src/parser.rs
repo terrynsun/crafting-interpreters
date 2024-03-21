@@ -15,6 +15,22 @@ struct Parser {
     idx: usize,
 }
 
+macro_rules! recurse_binary_expr {
+    ( $self:expr, $left:expr, $recurse:expr, $( ( $token:path, $binop:path ) $(,)? )* ) => {{
+            let next = $self.peek();
+            match &next.data {
+                $(
+                    $token => {
+                        $self.next();
+                        let right = $recurse;
+                        Expr::Binary($binop, $left.clone().into(), right.into())
+                    }
+                )*
+                _ => break,
+            }
+    }}
+}
+
 impl Parser {
     fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, idx: 0 }
@@ -123,19 +139,13 @@ impl Parser {
         }
 
         loop {
-            match &self.peek().data {
-                TokenData::BangEqual => {
-                    self.next();
-                    let right = self.comparison()?;
-                    expr = Expr::Binary(BinOp::Neq, expr.clone().into(), right.into());
-                }
-                TokenData::EqualEqual => {
-                    self.next();
-                    let right = self.comparison()?;
-                    expr = Expr::Binary(BinOp::Eq, expr.clone().into(), right.into());
-                }
-                _ => break,
-            }
+            expr = recurse_binary_expr!(
+                self,
+                expr,
+                self.comparison()?,
+                (TokenData::BangEqual,  BinOp::Neq),
+                (TokenData::EqualEqual, BinOp::Eq),
+            );
         }
 
         Ok(expr)
@@ -148,29 +158,15 @@ impl Parser {
         }
 
         loop {
-            match &self.peek().data {
-                TokenData::Greater => {
-                    self.next();
-                    let right = self.factor()?;
-                    expr = Expr::Binary(BinOp::Gt, expr.clone().into(), right.into());
-                }
-                TokenData::GreaterEqual => {
-                    self.next();
-                    let right = self.factor()?;
-                    expr = Expr::Binary(BinOp::GtEq, expr.clone().into(), right.into());
-                }
-                TokenData::Less => {
-                    self.next();
-                    let right = self.factor()?;
-                    expr = Expr::Binary(BinOp::Lt, expr.clone().into(), right.into());
-                }
-                TokenData::LessEqual => {
-                    self.next();
-                    let right = self.factor()?;
-                    expr = Expr::Binary(BinOp::LtEq, expr.clone().into(), right.into());
-                }
-                _ => break,
-            }
+            expr = recurse_binary_expr!(
+                self,
+                expr,
+                self.term()?,
+                (TokenData::Greater, BinOp::Gt),
+                (TokenData::GreaterEqual, BinOp::GtEq),
+                (TokenData::Less, BinOp::Lt),
+                (TokenData::LessEqual, BinOp::LtEq),
+            );
         }
 
         Ok(expr)
@@ -183,19 +179,13 @@ impl Parser {
         }
 
         loop {
-            match &self.peek().data {
-                TokenData::Plus => {
-                    self.next();
-                    let right = self.factor()?;
-                    expr = Expr::Binary(BinOp::Add, expr.clone().into(), right.into());
-                }
-                TokenData::Minus => {
-                    self.next();
-                    let right = self.factor()?;
-                    expr = Expr::Binary(BinOp::Sub, expr.clone().into(), right.into());
-                }
-                _ => break,
-            }
+            expr = recurse_binary_expr!(
+                self,
+                expr,
+                self.factor()?,
+                (TokenData::Plus, BinOp::Add),
+                (TokenData::Minus, BinOp::Sub),
+            );
         }
 
         Ok(expr)
@@ -208,19 +198,13 @@ impl Parser {
         }
 
         loop {
-            match &self.peek().data {
-                TokenData::Slash => {
-                    self.next();
-                    let right = self.unary()?;
-                    expr = Expr::Binary(BinOp::Div, expr.clone().into(), right.into());
-                }
-                TokenData::Star => {
-                    self.next();
-                    let right = self.unary()?;
-                    expr = Expr::Binary(BinOp::Mult, expr.clone().into(), right.into());
-                }
-                _ => break,
-            }
+            expr = recurse_binary_expr!(
+                self,
+                expr,
+                self.unary()?,
+                (TokenData::Slash, BinOp::Div),
+                (TokenData::Star, BinOp::Mult),
+            );
         }
 
         Ok(expr)
