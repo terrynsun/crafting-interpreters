@@ -3,53 +3,6 @@ use std::iter::Peekable;
 use crate::error::{Error, ErrorState};
 use crate::token::{Token, TokenData};
 
-/// mutates feed if the condition is met to consume the second character
-/// condition : result ? else
-fn double_char_ternary<I: Iterator<Item = char>>(
-    feed: &mut Peekable<I>,
-    conditional_match: char,
-    if_true: TokenData,
-    if_false: TokenData,
-) -> TokenData {
-    if let Some(&c) = feed.peek() {
-        if c == conditional_match {
-            feed.next();
-            return if_true;
-        }
-    }
-
-    if_false
-}
-
-// doesn't consume final character
-// todo: doesn't handle newlines in string literals
-fn consume_until<I: Iterator<Item = char>>(
-    feed: &mut Peekable<I>,
-    ending_char: char,
-) -> Result<String, Error> {
-    let chars = consume_while(feed, |c| c != ending_char)?;
-
-    Ok(chars.iter().collect())
-}
-
-fn consume_while<I: Iterator<Item = char>, F: Fn(char) -> bool>(
-    feed: &mut Peekable<I>,
-    condition: F,
-) -> Result<Vec<char>, Error> {
-    let mut acc = Vec::new();
-
-    while let Some(&c) = feed.peek() {
-        if condition(c) {
-            acc.push(c);
-            feed.next();
-        } else {
-            break;
-        }
-    }
-
-    Ok(acc)
-}
-
 pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut err_state = ErrorState::new_scanner_state();
@@ -194,7 +147,6 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
 
                     tokens.push(Token::new(keyword, lineno));
                 } else {
-                    // todo: multiple errors
                     err_state.add(Error::scan_error(
                         format!("unexpected character: {c}"),
                         lineno,
@@ -206,6 +158,55 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
     }
 
     Ok(tokens)
+}
+
+// todo: this should probably own a Scanner object that holds the state, rather than having a bunch
+// of these helper functions that take a &mut Peekable (Vec iterator).
+
+// mutates feed if the condition is met to consume the second character
+// condition : result ? else
+fn double_char_ternary<I: Iterator<Item = char>>(
+    feed: &mut Peekable<I>,
+    conditional_match: char,
+    if_true: TokenData,
+    if_false: TokenData,
+) -> TokenData {
+    if let Some(&c) = feed.peek() {
+        if c == conditional_match {
+            feed.next();
+            return if_true;
+        }
+    }
+
+    if_false
+}
+
+// doesn't consume final character
+fn consume_until<I: Iterator<Item = char>>(
+    feed: &mut Peekable<I>,
+    ending_char: char,
+) -> Result<String, Error> {
+    let chars = consume_while(feed, |c| c != ending_char)?;
+
+    Ok(chars.iter().collect())
+}
+
+fn consume_while<I: Iterator<Item = char>, F: Fn(char) -> bool>(
+    feed: &mut Peekable<I>,
+    condition: F,
+) -> Result<Vec<char>, Error> {
+    let mut acc = Vec::new();
+
+    while let Some(&c) = feed.peek() {
+        if condition(c) {
+            acc.push(c);
+            feed.next();
+        } else {
+            break;
+        }
+    }
+
+    Ok(acc)
 }
 
 // keywords or identifier literals
