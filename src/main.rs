@@ -12,7 +12,7 @@ use expr::Program;
 use std::fs;
 use std::io::{self, Write};
 
-use error::{Error, ErrorState};
+use error::ErrorState;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

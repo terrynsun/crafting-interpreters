@@ -127,7 +127,7 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
                         err_state.add(e);
                         break;
                         // todo - is this recoverable?
-                    },
+                    }
                 };
 
                 tokens.push(Token::new(TokenData::StringToken(literal), lineno));
@@ -147,14 +147,15 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
                 // todo: should bail out of number parsing if the char after the `.` is not a digit
                 if c.is_ascii_digit() {
                     let mut acc = vec![c];
-                    let part_two = match consume_while(&mut feed, |c| c.is_ascii_digit() || c == '.') {
-                        Ok(v) => v,
-                        Err(e) => {
-                            err_state.add(e);
-                            break;
-                            // todo - is this recoverable?
-                        },
-                    };
+                    let part_two =
+                        match consume_while(&mut feed, |c| c.is_ascii_digit() || c == '.') {
+                            Ok(v) => v,
+                            Err(e) => {
+                                err_state.add(e);
+                                break;
+                                // todo - is this recoverable?
+                            }
+                        };
 
                     acc.extend(part_two.iter());
                     let word = acc.iter().collect::<String>();
@@ -176,7 +177,7 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
                             err_state.add(e);
                             break;
                             // todo - is this recoverable?
-                        },
+                        }
                     };
 
                     acc.extend(part_two.iter());
@@ -188,7 +189,7 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
                             err_state.add(e);
                             break;
                             // todo - is this recoverable?
-                        },
+                        }
                     };
 
                     tokens.push(Token::new(keyword, lineno));
@@ -238,6 +239,7 @@ fn match_keyword(s: String) -> Result<TokenData, Error> {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use crate::token::{Token, TokenData::*};
     use crate::tokens;
@@ -249,20 +251,16 @@ mod tests {
         assert_eq!(
             tokens![(If, 0), (Else, 1)],
             vec![
-                Token::new(If, 0),
-                Token::new(Else, 1),
+                Token::new(If, 0), Token::new(Else, 1),
             ]
         );
     }
 
     macro_rules! assert_tokens {
-        ( $s:literal, $t:expr ) => {
-            {
-                let actual_tokens = scan($s, 0).unwrap();
-                //let expected_tokens = tokens![$t];
-                assert_eq!(actual_tokens, $t);
-            }
-        }
+        ( $s:literal, $t:expr ) => {{
+            let actual_tokens = scan($s, 0).unwrap();
+            assert_eq!(actual_tokens, $t);
+        }};
     }
 
     #[test]
@@ -286,10 +284,10 @@ mod tests {
             > >=
             < <=",
             tokens![
-                (Bang, 0), (BangEqual, 0),
-                (Equal, 1), (EqualEqual, 1),
+                (Bang, 0),    (BangEqual, 0),
+                (Equal, 1),   (EqualEqual, 1),
                 (Greater, 2), (GreaterEqual, 2),
-                (Less, 3), (LessEqual, 3),
+                (Less, 3),    (LessEqual, 3),
                 (Eof, 3),
             ]
         );
@@ -327,7 +325,7 @@ mod tests {
                 (If, 0),    (Else, 0),
                 (For, 1),   (While, 1),
                 (True, 2) , (False, 2),
-                (Class, 3), (This, 3), (Super, 3),
+                (Class, 3), (This, 3),  (Super, 3),
                 (And, 4),   (Or, 4),
                 (Print, 5),
                 (Fun, 6),   (Return, 6),
