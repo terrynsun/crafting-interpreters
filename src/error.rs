@@ -25,8 +25,8 @@ impl ErrorState {
         Self::ParseErrs(vec![])
     }
 
-    pub fn new_runtime_state(&mut self, e: Error) -> Self {
-        Self::RuntimeErr(e)
+    pub fn runtime_error(e: String, lineno: u32) -> Self {
+        Self::RuntimeErr(Error::runtime_error(e, lineno))
     }
 
     pub fn add(&mut self, e: Error) {
@@ -48,30 +48,38 @@ impl ErrorState {
 
 #[derive(Debug)]
 pub struct Error {
-    err: ErrType,
+    err: ErrMsg,
     line: u32,
+}
+
+#[derive(Debug)]
+enum ErrMsg {
+    Scan(String),
+    Parse(String),
+    Runtime(String),
 }
 
 impl Error {
     pub fn scan_error(msg: String, line: u32) -> Self {
         Self {
             line,
-            err: ErrType::ScanError(msg),
+            err: ErrMsg::Scan(msg),
         }
     }
 
     pub fn parse_error(msg: String, line: u32) -> Self {
         Self {
             line,
-            err: ErrType::ParseError(msg),
+            err: ErrMsg::Parse(msg),
         }
     }
-}
 
-#[derive(Debug)]
-enum ErrType {
-    ScanError(String),
-    ParseError(String),
+    pub fn runtime_error(msg: String, line: u32) -> Self {
+        Self {
+            line,
+            err: ErrMsg::Runtime(msg),
+        }
+    }
 }
 
 impl Display for ErrorState {
@@ -100,11 +108,12 @@ impl Display for Error {
     }
 }
 
-impl Display for ErrType {
+impl Display for ErrMsg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrType::ScanError(msg) => write!(f, "scan error: {msg}"),
-            ErrType::ParseError(msg) => write!(f, "parse error: {msg}"),
+            ErrMsg::Scan(msg) => write!(f, "scan error: {msg}"),
+            ErrMsg::Parse(msg) => write!(f, "parse error: {msg}"),
+            ErrMsg::Runtime(msg) => write!(f, "runtime error: {msg}"),
         }
     }
 }
