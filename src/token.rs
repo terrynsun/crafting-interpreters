@@ -3,7 +3,7 @@
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub data: TokenData,
-    line: u32,
+    pub line: u32,
 }
 
 impl Token {

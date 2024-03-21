@@ -1,12 +1,11 @@
+use crate::error::{Error, ErrorState};
 use crate::expr::{BinOp, Expr, Program, Stmt, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
 };
 
-type ParseError = String;
-
-pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
+pub fn parse(tokens: Vec<Token>) -> Result<Program, ErrorState> {
     let mut p = Parser::new(tokens);
     p.parse()
 }
@@ -34,31 +33,56 @@ impl Parser {
         &self.tokens[self.idx]
     }
 
-    fn expect(&mut self, expected: TokenData, err: &'static str) -> Result<(), ParseError> {
+    fn expect(&mut self, expected: TokenData, err: &'static str) -> Result<(), Error> {
         let next_token = self.peek();
         if expected == next_token.data {
             self.next();
             Ok(())
         } else {
-            Err(format!("parse error: expected {err}, got {next_token:?}"))
+            Err(Error::parse_error(
+                format!("expected {err}, got {next_token:?}"),
+                next_token.line,
+            ))
         }
     }
 
     /* The recursive descent parser itself */
 
     // Entrypoint for a full program
-    fn parse(&mut self) -> Result<Program, ParseError> {
+    //
+    // Error handling: right now, self.statement() can only return a single error. But program can
+    // return a bunch of errors. When we hit an error, try to recover by fast-forwarding until we
+    // find a semicolon. Then try to parse another statement.
+    fn parse(&mut self) -> Result<Program, ErrorState> {
         let mut program = vec![];
+        let mut err_state = ErrorState::new_parser_state();
 
         while !self.is_at_end() {
-            let expr = self.statement()?;
-            program.push(expr);
+            match self.statement() {
+                Ok(expr) => program.push(expr),
+                Err(e) => {
+                    err_state.add(e);
+                    loop {
+                        if let Semicolon = self.peek().data {
+                            self.next();
+                            break;
+                        } else {
+                            println!("err @ {:?} -- incrementing", self.peek());
+                            self.next();
+                        }
+                    }
+                }
+            }
         }
 
-        Ok(program)
+        if err_state.is_ok() {
+            Ok(program)
+        } else {
+            Err(err_state)
+        }
     }
 
-    fn statement(&mut self) -> Result<Stmt, ParseError> {
+    fn statement(&mut self) -> Result<Stmt, Error> {
         let stmt = match self.peek().data {
             Print => {
                 self.next();
@@ -72,25 +96,23 @@ impl Parser {
             }
         };
 
-        // consume semicolon
         self.expect(TokenData::Semicolon, "semicolon")?;
 
         Ok(stmt)
     }
 
-    fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+    fn parse_expression(&mut self) -> Result<Expr, Error> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Result<Expr, ParseError> {
+    fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr = self.comparison()?;
         if self.is_at_end() {
             return Ok(expr);
         }
 
         loop {
-            let next = &self.tokens[self.idx];
-            match &next.data {
+            match &self.peek().data {
                 TokenData::BangEqual => {
                     self.next();
                     let right = self.comparison()?;
@@ -108,15 +130,14 @@ impl Parser {
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr, ParseError> {
+    fn comparison(&mut self) -> Result<Expr, Error> {
         let mut expr = self.term()?;
         if self.is_at_end() {
             return Ok(expr);
         }
 
         loop {
-            let next = &self.tokens[self.idx];
-            match &next.data {
+            match &self.peek().data {
                 TokenData::Greater => {
                     self.next();
                     let right = self.factor()?;
@@ -144,15 +165,14 @@ impl Parser {
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<Expr, ParseError> {
+    fn term(&mut self) -> Result<Expr, Error> {
         let mut expr = self.factor()?;
         if self.is_at_end() {
             return Ok(expr);
         }
 
         loop {
-            let next = &self.tokens[self.idx];
-            match &next.data {
+            match &self.peek().data {
                 TokenData::Plus => {
                     self.next();
                     let right = self.factor()?;
@@ -170,15 +190,14 @@ impl Parser {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<Expr, ParseError> {
+    fn factor(&mut self) -> Result<Expr, Error> {
         let mut expr = self.unary()?;
         if self.is_at_end() {
             return Ok(expr);
         }
 
         loop {
-            let next = &self.tokens[self.idx];
-            match &next.data {
+            match &self.peek().data {
                 TokenData::Slash => {
                     self.next();
                     let right = self.unary()?;
@@ -196,9 +215,8 @@ impl Parser {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr, ParseError> {
-        let cur = &self.tokens[self.idx];
-        match cur.data {
+    fn unary(&mut self) -> Result<Expr, Error> {
+        match &self.peek().data {
             Minus => {
                 self.next();
                 let e = self.unary()?;
@@ -213,10 +231,9 @@ impl Parser {
         }
     }
 
-    fn primary(&mut self) -> Result<Expr, ParseError> {
-        let cur = self.peek();
-
-        match &cur.data {
+    fn primary(&mut self) -> Result<Expr, Error> {
+        let next = self.peek();
+        match &next.data {
             Identifier(s) => {
                 // clone the string out of the immutable borrow before modifying self
                 let ret = Expr::Identifier(s.clone());
@@ -258,13 +275,18 @@ impl Parser {
 
                 let expr = self.equality()?;
 
-                // consume RightParen too
                 self.expect(TokenData::RightParen, "closing parens")?;
 
                 Ok(expr)
             }
-            Eof => Err("parse error: unexpected end of file".to_string()),
-            t => Err(format!("parse error: unexpected token: {t:?}")),
+            Eof => Err(Error::parse_error(
+                "unexpected end of file".to_string(),
+                next.line,
+            )),
+            t => Err(Error::parse_error(
+                format!("unexpected token: {t:?}"),
+                next.line,
+            )),
         }
     }
 }
@@ -321,38 +343,22 @@ mod tests {
     #[test]
     fn cmps() {
         assert_expr_parses!(
-            tokens![
-                TokenData::True,
-                TokenData::Greater,
-                TokenData::False,
-            ],
+            tokens![TokenData::True, TokenData::Greater, TokenData::False,],
             Expr::Binary(BinOp::Gt, Expr::True.into(), Expr::False.into())
         );
 
         assert_expr_parses!(
-            tokens![
-                TokenData::True,
-                TokenData::GreaterEqual,
-                TokenData::False,
-            ],
+            tokens![TokenData::True, TokenData::GreaterEqual, TokenData::False,],
             Expr::Binary(BinOp::GtEq, Expr::True.into(), Expr::False.into())
         );
 
         assert_expr_parses!(
-            tokens![
-                TokenData::True,
-                TokenData::Less,
-                TokenData::False,
-            ],
+            tokens![TokenData::True, TokenData::Less, TokenData::False,],
             Expr::Binary(BinOp::Lt, Expr::True.into(), Expr::False.into())
         );
 
         assert_expr_parses!(
-            tokens![
-                TokenData::True,
-                TokenData::LessEqual,
-                TokenData::False,
-            ],
+            tokens![TokenData::True, TokenData::LessEqual, TokenData::False,],
             Expr::Binary(BinOp::LtEq, Expr::True.into(), Expr::False.into())
         );
 

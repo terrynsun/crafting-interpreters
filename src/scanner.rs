@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 
+use crate::error::{Error, ErrorState};
 use crate::token::{Token, TokenData};
-use crate::Error;
 
 /// mutates feed if the condition is met to consume the second character
 /// condition : result ? else
@@ -50,8 +50,10 @@ fn consume_while<I: Iterator<Item = char>, F: Fn(char) -> bool>(
     Ok(acc)
 }
 
-pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, Error> {
+pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, ErrorState> {
     let mut tokens: Vec<Token> = Vec::new();
+    let mut err_state = ErrorState::new_scanner_state();
+
     let mut lineno = starting_line;
     let mut feed = text.chars().peekable();
 
@@ -107,7 +109,11 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, Error> {
                     feed.next();
 
                     // discard comment string
-                    let _ = consume_until(&mut feed, '\n')?;
+                    if let Err(e) = consume_until(&mut feed, '\n') {
+                        err_state.add(e);
+                        break;
+                        // todo - is this recoverable?
+                    }
                 } else {
                     tokens.push(Token::new(TokenData::Slash, lineno));
                 }
@@ -115,7 +121,15 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, Error> {
 
             // string literals
             '"' => {
-                let literal = consume_until(&mut feed, '"')?;
+                let literal = match consume_until(&mut feed, '"') {
+                    Ok(v) => v,
+                    Err(e) => {
+                        err_state.add(e);
+                        break;
+                        // todo - is this recoverable?
+                    },
+                };
+
                 tokens.push(Token::new(TokenData::StringToken(literal), lineno));
 
                 // consume closing quote
@@ -133,36 +147,58 @@ pub fn scan(text: &str, starting_line: u32) -> Result<Vec<Token>, Error> {
                 // todo: should bail out of number parsing if the char after the `.` is not a digit
                 if c.is_ascii_digit() {
                     let mut acc = vec![c];
-                    let part_two = consume_while(&mut feed, |c| c.is_ascii_digit() || c == '.')?;
+                    let part_two = match consume_while(&mut feed, |c| c.is_ascii_digit() || c == '.') {
+                        Ok(v) => v,
+                        Err(e) => {
+                            err_state.add(e);
+                            break;
+                            // todo - is this recoverable?
+                        },
+                    };
 
                     acc.extend(part_two.iter());
                     let word = acc.iter().collect::<String>();
 
                     match word.parse() {
                         Ok(n) => tokens.push(Token::new(TokenData::Number(n), lineno)),
-                        Err(_) => {
-                            return Err(Error::new_with_msg(
-                                format!("invalid number literal: {word}"),
-                                0,
-                            ))
+                        Err(e) => {
+                            err_state.add(Error::scan_error(
+                                format!("invalid number literal: {word}, {e}"),
+                                lineno,
+                            ));
                         }
                     }
                 } else if is_word(c) {
                     let mut acc = vec![c];
-                    let part_two = consume_while(&mut feed, is_word)?;
+                    let part_two = match consume_while(&mut feed, is_word) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            err_state.add(e);
+                            break;
+                            // todo - is this recoverable?
+                        },
+                    };
 
                     acc.extend(part_two.iter());
 
                     let word = acc.iter().collect::<String>();
-                    tokens.push(Token::new(match_keyword(word)?, lineno));
+                    let keyword = match match_keyword(word) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            err_state.add(e);
+                            break;
+                            // todo - is this recoverable?
+                        },
+                    };
+
+                    tokens.push(Token::new(keyword, lineno));
                 } else {
-                    println!("unexpected: {c} {} {}", c as u32, lineno);
                     // todo: multiple errors
-                    // todo: include character in error
-                    return Err(Error::new_with_msg(
+                    err_state.add(Error::scan_error(
                         format!("unexpected character: {c}"),
                         lineno,
                     ));
+                    break;
                 }
             }
         }

@@ -12,7 +12,7 @@ use expr::Program;
 use std::fs;
 use std::io::{self, Write};
 
-use error::Error;
+use error::{Error, ErrorState};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -60,7 +60,7 @@ fn exec_program(program: Program, options: &Args) {
     }
 }
 
-fn repl(options: Args) -> Result<(), Error> {
+fn repl(options: Args) -> Result<(), ErrorState> {
     print_prompt();
 
     // Line will be None if someone hits ^D
@@ -94,14 +94,13 @@ fn repl(options: Args) -> Result<(), Error> {
     Ok(())
 }
 
-fn read_file(options: Args) -> Result<(), Error> {
+fn process_file(options: Args) -> Result<(), ErrorState> {
     let contents = fs::read_to_string(options.file.clone().unwrap())
         .expect("Should have been able to read the file");
 
     let tokens = scanner::scan(&contents, 0)?;
 
-    let program = parser::parse(tokens)
-        .map_err(|e| Error::new_with_msg(e, 0))?;
+    let program = parser::parse(tokens)?;
 
     exec_program(program, &options);
 
@@ -111,7 +110,7 @@ fn read_file(options: Args) -> Result<(), Error> {
 fn main() {
     let args = Args::parse();
     let err = match args.file {
-        Some(_) => read_file(args),
+        Some(_) => process_file(args),
         None => repl(args),
     };
 
