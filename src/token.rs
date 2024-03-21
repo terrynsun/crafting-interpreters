@@ -66,23 +66,19 @@ pub enum TokenData {
 mod tests {
     #[macro_export]
     macro_rules! tokens {
-        ( $( ($t:expr, $l:literal) ),* $(,)? ) => {
-            {
-                let mut v = Vec::new();
-                $(
-                    v.push(Token::new($t, $l));
-                )*
-                v
-            }
-        };
-        ( $( $t:expr $(,)? )* ) => {
-            {
-                let mut v = Vec::new();
-                $(
-                    v.push(Token::new($t, 0));
-                )*
-                v
-            }
-        };
+        ( $( ($t:expr, $l:literal) ),* $(,)? ) => {{
+            let mut v = Vec::new();
+            $(
+                v.push(Token::new($t, $l));
+            )*
+            v
+        }};
+        ( $( $t:expr $(,)? )* ) => {{
+            let mut v = Vec::new();
+            $(
+                v.push(Token::new($t, 0));
+            )*
+            v
+        }};
     }
 }
