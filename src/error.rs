@@ -48,12 +48,12 @@ impl ErrorState {
 
 #[derive(Debug)]
 pub struct Error {
-    err: ErrMsg,
+    err: ErrorMsg,
     line: u32,
 }
 
 #[derive(Debug)]
-enum ErrMsg {
+enum ErrorMsg {
     Scan(String),
     Parse(String),
     Runtime(String),
@@ -63,21 +63,21 @@ impl Error {
     pub fn scan_error(msg: String, line: u32) -> Self {
         Self {
             line,
-            err: ErrMsg::Scan(msg),
+            err: ErrorMsg::Scan(msg),
         }
     }
 
     pub fn parse_error(msg: String, line: u32) -> Self {
         Self {
             line,
-            err: ErrMsg::Parse(msg),
+            err: ErrorMsg::Parse(msg),
         }
     }
 
     pub fn runtime_error(msg: String, line: u32) -> Self {
         Self {
             line,
-            err: ErrMsg::Runtime(msg),
+            err: ErrorMsg::Runtime(msg),
         }
     }
 }
@@ -108,12 +108,12 @@ impl Display for Error {
     }
 }
 
-impl Display for ErrMsg {
+impl Display for ErrorMsg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrMsg::Scan(msg) => write!(f, "scan error: {msg}"),
-            ErrMsg::Parse(msg) => write!(f, "parse error: {msg}"),
-            ErrMsg::Runtime(msg) => write!(f, "runtime error: {msg}"),
+            ErrorMsg::Scan(msg) => write!(f, "scan error: {msg}"),
+            ErrorMsg::Parse(msg) => write!(f, "parse error: {msg}"),
+            ErrorMsg::Runtime(msg) => write!(f, "runtime error: {msg}"),
         }
     }
 }

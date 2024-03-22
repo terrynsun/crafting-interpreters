@@ -1,4 +1,4 @@
-use crate::expr::{BinOp, Expr, UnaryOp};
+use crate::expr::{BinOp, Expr, ExprData, UnaryOp};
 
 macro_rules! indent {
     ( $v:expr, $n:expr) => {{
@@ -15,12 +15,22 @@ macro_rules! pretty {
 
 impl Expr {
     pub fn pretty(&self) {
+        self.data.pretty_recur(0)
+    }
+
+    pub fn pretty_recur(&self, indent: usize) {
+        self.data.pretty_recur(indent)
+    }
+}
+
+impl ExprData {
+    pub fn pretty(&self) {
         self.pretty_recur(0)
     }
 
     pub fn pretty_recur(&self, indent: usize) {
         match self {
-            Expr::Binary(op, left, right) => {
+            Self::Binary(op, left, right) => {
                 let op = match op {
                     BinOp::Eq => "==",
                     BinOp::Neq => "!=",
@@ -36,7 +46,7 @@ impl Expr {
                 pretty!(op, left, right, indent)
             }
 
-            Expr::Unary(op, e) => {
+            Self::Unary(op, e) => {
                 let op = match op {
                     UnaryOp::Negative => "-",
                     UnaryOp::Inverse => "!",
@@ -45,12 +55,12 @@ impl Expr {
                 e.pretty_recur(indent + 4);
             }
 
-            Expr::Identifier(s) => indent!(format!("{s}"), indent),
-            Expr::StringLiteral(s) => indent!(format!("\"{s}\""), indent),
-            Expr::NumberLiteral(n) => indent!(format!("{n}"), indent),
-            Expr::True => indent!("true", indent),
-            Expr::False => indent!("false", indent),
-            Expr::Nil => indent!("nil", indent),
+            Self::Identifier(s) => indent!(format!("{s}"), indent),
+            Self::StringLiteral(s) => indent!(format!("\"{s}\""), indent),
+            Self::NumberLiteral(n) => indent!(format!("{n}"), indent),
+            Self::True => indent!("true", indent),
+            Self::False => indent!("false", indent),
+            Self::Nil => indent!("nil", indent),
         }
     }
 }

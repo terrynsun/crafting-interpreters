@@ -1,5 +1,5 @@
 use crate::error::ErrorState;
-use crate::expr::{BinOp, Expr, UnaryOp};
+use crate::expr::{BinOp, Expr, ExprData, UnaryOp};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -23,8 +23,14 @@ impl PartialEq for Value {
 
 impl Expr {
     pub fn eval(&self) -> Result<Value, ErrorState> {
+        self.data.eval()
+    }
+}
+
+impl ExprData {
+    pub fn eval(&self) -> Result<Value, ErrorState> {
         match self {
-            Expr::Binary(op, left_expr, right_expr) => {
+            Self::Binary(op, left_expr, right_expr) => {
                 let left_val = left_expr.eval()?;
                 let right_val = right_expr.eval()?;
 
@@ -118,7 +124,7 @@ impl Expr {
                 }
             }
 
-            Expr::Unary(op, e) => {
+            Self::Unary(op, e) => {
                 let val = e.eval()?;
                 match op {
                     UnaryOp::Negative => {
@@ -144,15 +150,15 @@ impl Expr {
                 }
             }
 
-            Expr::Identifier(_) => Err(ErrorState::runtime_error(
+            Self::Identifier(_) => Err(ErrorState::runtime_error(
                 "! can only be applied to numbers".into(),
                 0,
             )),
-            Expr::StringLiteral(s) => Ok(Value::String(s.clone())),
-            Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
-            Expr::True => Ok(Value::Boolean(true)),
-            Expr::False => Ok(Value::Boolean(false)),
-            Expr::Nil => Ok(Value::Nil),
+            Self::StringLiteral(s) => Ok(Value::String(s.clone())),
+            Self::NumberLiteral(n) => Ok(Value::Number(*n)),
+            Self::True => Ok(Value::Boolean(true)),
+            Self::False => Ok(Value::Boolean(false)),
+            Self::Nil => Ok(Value::Nil),
         }
     }
 }

@@ -29,7 +29,19 @@ use std::rc::Rc;
 // primary        → literal | "(" expression ")"
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Expr {
+pub struct Expr {
+    pub data: ExprData,
+    pub line: u32,
+}
+
+impl Expr {
+    pub fn new(data: ExprData, line: u32) -> Self {
+        Self { data, line }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ExprData {
     Binary(BinOp, Rc<Expr>, Rc<Expr>),
     Unary(UnaryOp, Rc<Expr>),
 

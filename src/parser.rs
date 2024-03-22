@@ -1,5 +1,5 @@
 use crate::error::{Error, ErrorState};
-use crate::expr::{BinOp, Expr, Program, Stmt, UnaryOp};
+use crate::expr::{BinOp, Expr, ExprData, Program, Stmt, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -17,17 +17,22 @@ struct Parser {
 
 macro_rules! recurse_binary_expr {
     ( $self:expr, $left:expr, $recurse:expr, $( ( $token:path, $binop:path ) $(,)? )* ) => {{
-            let next = $self.peek();
-            match &next.data {
-                $(
-                    $token => {
-                        $self.next();
-                        let right = $recurse;
-                        Expr::Binary($binop, $left.clone().into(), right.into())
-                    }
-                )*
-                _ => break,
-            }
+        let Token { data, line } = $self.peek();
+        let line = line.clone();
+
+        match &data {
+            $(
+                $token => {
+                    $self.next();
+                    let right = $recurse;
+                    Expr::new(
+                        ExprData::Binary($binop, $left.clone().into(), right.into()),
+                        line,
+                    )
+                }
+            )*
+            _ => break,
+        }
     }}
 }
 
@@ -45,7 +50,7 @@ impl Parser {
         self.idx += 1;
     }
 
-    fn peek(&mut self) -> &Token {
+    fn peek(&self) -> &Token {
         &self.tokens[self.idx]
     }
 
@@ -143,7 +148,7 @@ impl Parser {
                 self,
                 expr,
                 self.comparison()?,
-                (TokenData::BangEqual,  BinOp::Neq),
+                (TokenData::BangEqual, BinOp::Neq),
                 (TokenData::EqualEqual, BinOp::Eq),
             );
         }
@@ -211,59 +216,73 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expr, Error> {
-        match &self.peek().data {
+        let Token { data, line } = self.peek();
+        let line = *line;
+
+        let expr = match &data {
             Minus => {
                 self.next();
                 let e = self.unary()?;
-                Ok(Expr::Unary(UnaryOp::Negative, e.into()))
+                Expr::new(ExprData::Unary(UnaryOp::Negative, e.into()), line)
             }
             Bang => {
                 self.next();
                 let e = self.unary()?;
-                Ok(Expr::Unary(UnaryOp::Inverse, e.into()))
+                Expr::new(ExprData::Unary(UnaryOp::Inverse, e.into()), line)
             }
-            _ => Ok(self.primary()?),
-        }
+            _ => self.primary()?,
+        };
+
+        Ok(expr)
     }
 
     fn primary(&mut self) -> Result<Expr, Error> {
-        let next = self.peek();
-        match &next.data {
+        let Token { data, line } = self.peek();
+        let ident = match &data {
             Identifier(s) => {
                 // clone the string out of the immutable borrow before modifying self
-                let ret = Expr::Identifier(s.clone());
+                let expr = Expr::new(ExprData::Identifier(s.clone()), *line);
 
                 self.next();
 
-                Ok(ret)
+                expr
             }
             StringToken(s) => {
                 // clone the string out of the immutable borrow before modifying self
-                let ret = Expr::StringLiteral(s.clone());
+                let expr = Expr::new(ExprData::StringLiteral(s.clone()), *line);
 
                 self.next();
 
-                Ok(ret)
+                expr
             }
             Number(n) => {
                 // copy the literal out of the immutable borrow before modifying self
-                let ret = Expr::NumberLiteral(*n);
+                let expr = Expr::new(ExprData::NumberLiteral(*n), *line);
 
                 self.next();
 
-                Ok(ret)
+                expr
             }
             True => {
+                let expr = Expr::new(ExprData::True, *line);
+
                 self.next();
-                Ok(Expr::True)
+
+                expr
             }
             False => {
+                let expr = Expr::new(ExprData::False, *line);
+
                 self.next();
-                Ok(Expr::False)
+
+                expr
             }
             Nil => {
+                let expr = Expr::new(ExprData::Nil, *line);
+
                 self.next();
-                Ok(Expr::Nil)
+
+                expr
             }
             LeftParen => {
                 self.next(); // first move pointer past LeftParen
@@ -272,28 +291,35 @@ impl Parser {
 
                 self.expect(TokenData::RightParen, "closing parens")?;
 
-                Ok(expr)
+                expr
             }
-            Eof => Err(Error::parse_error(
-                "unexpected end of file".to_string(),
-                next.line,
-            )),
-            t => Err(Error::parse_error(
-                format!("unexpected token: {t:?}"),
-                next.line,
-            )),
-        }
+            Eof => {
+                return Err(Error::parse_error(
+                    "unexpected end of file".to_string(),
+                    *line,
+                ))
+            }
+            t => {
+                return Err(Error::parse_error(
+                    format!("unexpected token: {t:?}"),
+                    *line,
+                ))
+            }
+        };
+
+        Ok(ident)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::expr::{BinOp, Expr, Stmt, UnaryOp};
+    use crate::expr::{BinOp, Expr, ExprData, Stmt, UnaryOp};
     use crate::token::{Token, TokenData};
     use crate::tokens;
 
     use super::parse;
 
+    // ignores line numbers
     macro_rules! assert_expr_parses {
         ( $tokens:expr, $expected:expr ) => {{
             let mut v = $tokens.clone();
@@ -306,19 +332,29 @@ mod tests {
         }};
     }
 
+    // wraps ExprData in Expr
+    macro_rules! e {
+        ( $e:expr ) => {{
+            Expr::new($e, 0)
+        }};
+    }
+
     #[test]
     fn literals() {
-        assert_expr_parses!(tokens![TokenData::True], Expr::True);
+        assert_expr_parses!(tokens![TokenData::True], e!(ExprData::True));
 
-        assert_expr_parses!(tokens![TokenData::False], Expr::False);
+        assert_expr_parses!(tokens![TokenData::False], e!(ExprData::False));
 
-        assert_expr_parses!(tokens![TokenData::Nil], Expr::Nil);
+        assert_expr_parses!(tokens![TokenData::Nil], e!(ExprData::Nil));
 
-        assert_expr_parses!(tokens![TokenData::Number(1.0)], Expr::NumberLiteral(1.0));
+        assert_expr_parses!(
+            tokens![TokenData::Number(1.0)],
+            e!(ExprData::NumberLiteral(1.0))
+        );
 
         assert_expr_parses!(
             tokens![TokenData::StringToken("foo".to_string())],
-            Expr::StringLiteral("foo".to_string())
+            e!(ExprData::StringLiteral("foo".to_string()))
         );
     }
 
@@ -326,12 +362,18 @@ mod tests {
     fn unary() {
         assert_expr_parses!(
             tokens![TokenData::Bang, TokenData::False],
-            Expr::Unary(UnaryOp::Inverse, Expr::False.into())
+            e!(ExprData::Unary(
+                UnaryOp::Inverse,
+                e!(ExprData::False).into(),
+            ))
         );
 
         assert_expr_parses!(
             tokens![TokenData::Minus, TokenData::False],
-            Expr::Unary(UnaryOp::Negative, Expr::False.into())
+            e!(ExprData::Unary(
+                UnaryOp::Negative,
+                e!(ExprData::False).into()
+            ))
         );
     }
 
@@ -339,22 +381,38 @@ mod tests {
     fn cmps() {
         assert_expr_parses!(
             tokens![TokenData::True, TokenData::Greater, TokenData::False,],
-            Expr::Binary(BinOp::Gt, Expr::True.into(), Expr::False.into())
+            e!(ExprData::Binary(
+                BinOp::Gt,
+                e!(ExprData::True).into(),
+                e!(ExprData::False).into()
+            ))
         );
 
         assert_expr_parses!(
             tokens![TokenData::True, TokenData::GreaterEqual, TokenData::False,],
-            Expr::Binary(BinOp::GtEq, Expr::True.into(), Expr::False.into())
+            e!(ExprData::Binary(
+                BinOp::GtEq,
+                e!(ExprData::True).into(),
+                e!(ExprData::False).into()
+            ))
         );
 
         assert_expr_parses!(
             tokens![TokenData::True, TokenData::Less, TokenData::False,],
-            Expr::Binary(BinOp::Lt, Expr::True.into(), Expr::False.into())
+            e!(ExprData::Binary(
+                BinOp::Lt,
+                e!(ExprData::True).into(),
+                e!(ExprData::False).into()
+            ))
         );
 
         assert_expr_parses!(
             tokens![TokenData::True, TokenData::LessEqual, TokenData::False,],
-            Expr::Binary(BinOp::LtEq, Expr::True.into(), Expr::False.into())
+            e!(ExprData::Binary(
+                BinOp::LtEq,
+                e!(ExprData::True).into(),
+                e!(ExprData::False).into()
+            ))
         );
 
         // left-associativity
@@ -366,16 +424,16 @@ mod tests {
                 TokenData::GreaterEqual,
                 TokenData::Number(3.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::GtEq,
-                Expr::Binary(
+                e!(ExprData::Binary(
                     BinOp::LtEq,
-                    Expr::NumberLiteral(1.0).into(),
-                    Expr::NumberLiteral(2.0).into(),
-                )
+                    e!(ExprData::NumberLiteral(1.0)).into(),
+                    e!(ExprData::NumberLiteral(2.0)).into(),
+                ))
                 .into(),
-                Expr::NumberLiteral(3.0).into()
-            )
+                e!(ExprData::NumberLiteral(3.0)).into()
+            ))
         );
     }
 
@@ -387,11 +445,11 @@ mod tests {
                 TokenData::Plus,
                 TokenData::Number(2.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::Add,
-                Expr::NumberLiteral(1.0).into(),
-                Expr::NumberLiteral(2.0).into(),
-            )
+                e!(ExprData::NumberLiteral(1.0)).into(),
+                e!(ExprData::NumberLiteral(2.0)).into(),
+            ))
         );
 
         assert_expr_parses!(
@@ -400,11 +458,11 @@ mod tests {
                 TokenData::Minus,
                 TokenData::Number(2.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::Sub,
-                Expr::NumberLiteral(1.0).into(),
-                Expr::NumberLiteral(2.0).into(),
-            )
+                e!(ExprData::NumberLiteral(1.0)).into(),
+                e!(ExprData::NumberLiteral(2.0)).into(),
+            ))
         );
 
         assert_expr_parses!(
@@ -413,11 +471,11 @@ mod tests {
                 TokenData::Slash,
                 TokenData::Number(2.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::Div,
-                Expr::NumberLiteral(1.0).into(),
-                Expr::NumberLiteral(2.0).into(),
-            )
+                e!(ExprData::NumberLiteral(1.0)).into(),
+                e!(ExprData::NumberLiteral(2.0)).into(),
+            ))
         );
 
         assert_expr_parses!(
@@ -426,11 +484,11 @@ mod tests {
                 TokenData::Star,
                 TokenData::Number(2.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::Mult,
-                Expr::NumberLiteral(1.0).into(),
-                Expr::NumberLiteral(2.0).into(),
-            )
+                e!(ExprData::NumberLiteral(1.0)).into(),
+                e!(ExprData::NumberLiteral(2.0)).into(),
+            ))
         );
 
         // left-associative on same operator
@@ -442,16 +500,16 @@ mod tests {
                 TokenData::Star,
                 TokenData::Number(3.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::Mult,
-                Expr::Binary(
+                e!(ExprData::Binary(
                     BinOp::Mult,
-                    Expr::NumberLiteral(1.0).into(),
-                    Expr::NumberLiteral(2.0).into(),
-                )
+                    e!(ExprData::NumberLiteral(1.0)).into(),
+                    e!(ExprData::NumberLiteral(2.0)).into(),
+                ))
                 .into(),
-                Expr::NumberLiteral(3.0).into(),
-            )
+                e!(ExprData::NumberLiteral(3.0)).into(),
+            ))
         );
 
         // mult takes precedence over add
@@ -463,16 +521,16 @@ mod tests {
                 TokenData::Star,
                 TokenData::Number(3.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::Add,
-                Expr::NumberLiteral(1.0).into(),
-                Expr::Binary(
+                e!(ExprData::NumberLiteral(1.0)).into(),
+                e!(ExprData::Binary(
                     BinOp::Mult,
-                    Expr::NumberLiteral(2.0).into(),
-                    Expr::NumberLiteral(3.0).into(),
-                )
+                    e!(ExprData::NumberLiteral(2.0)).into(),
+                    e!(ExprData::NumberLiteral(3.0)).into(),
+                ))
                 .into(),
-            )
+            ))
         );
     }
 
@@ -488,16 +546,16 @@ mod tests {
                 TokenData::Star,
                 TokenData::Number(3.0),
             ],
-            Expr::Binary(
+            e!(ExprData::Binary(
                 BinOp::Mult,
-                Expr::Binary(
+                e!(ExprData::Binary(
                     BinOp::Add,
-                    Expr::NumberLiteral(1.0).into(),
-                    Expr::NumberLiteral(2.0).into(),
-                )
+                    e!(ExprData::NumberLiteral(1.0)).into(),
+                    e!(ExprData::NumberLiteral(2.0)).into(),
+                ))
                 .into(),
-                Expr::NumberLiteral(3.0).into(),
-            )
+                e!(ExprData::NumberLiteral(3.0)).into(),
+            ))
         );
     }
 }
