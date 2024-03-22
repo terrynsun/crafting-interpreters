@@ -23,12 +23,12 @@ impl PartialEq for Value {
 
 impl Expr {
     pub fn eval(&self) -> Result<Value, ErrorState> {
-        self.data.eval()
+        self.data.eval(self.line)
     }
 }
 
 impl ExprData {
-    pub fn eval(&self) -> Result<Value, ErrorState> {
+    pub fn eval(&self, line: u32) -> Result<Value, ErrorState> {
         match self {
             Self::Binary(op, left_expr, right_expr) => {
                 let left_val = left_expr.eval()?;
@@ -44,7 +44,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only compare numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -54,7 +54,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only compare numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -64,7 +64,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only compare numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -74,7 +74,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only compare numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -87,7 +87,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only add numbers or strings".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -97,7 +97,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only subtract numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -107,7 +107,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only divide numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -117,7 +117,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "can only multiply numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -133,7 +133,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "- can only be applied to numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -143,7 +143,7 @@ impl ExprData {
                         } else {
                             Err(ErrorState::runtime_error(
                                 "! can only be applied to numbers".into(),
-                                0,
+                                line,
                             ))
                         }
                     }
@@ -152,7 +152,7 @@ impl ExprData {
 
             Self::Identifier(_) => Err(ErrorState::runtime_error(
                 "! can only be applied to numbers".into(),
-                0,
+                line,
             )),
             Self::StringLiteral(s) => Ok(Value::String(s.clone())),
             Self::NumberLiteral(n) => Ok(Value::Number(*n)),

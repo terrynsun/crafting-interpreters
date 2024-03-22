@@ -24,10 +24,6 @@ impl Expr {
 }
 
 impl ExprData {
-    pub fn pretty(&self) {
-        self.pretty_recur(0)
-    }
-
     pub fn pretty_recur(&self, indent: usize) {
         match self {
             Self::Binary(op, left, right) => {
