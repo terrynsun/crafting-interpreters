@@ -1,5 +1,5 @@
 use crate::error::{Error, ErrorState};
-use crate::expr::{BinOp, Expr, ExprData, Program, Stmt, UnaryOp};
+use crate::expr::{BinOp, Expr, ExprData, Program, Stmt, UnaryOp, Decl};
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -79,7 +79,7 @@ impl Parser {
         let mut err_state = ErrorState::new_parser_state();
 
         while !self.is_at_end() {
-            match self.statement() {
+            match self.declaration() {
                 Ok(expr) => program.push(expr),
                 Err(e) => {
                     err_state.add(e);
@@ -114,21 +114,48 @@ impl Parser {
         }
     }
 
+    fn declaration(&mut self) -> Result<Decl, Error> {
+        let decl = match &self.peek().data {
+            Var => {
+                self.next();
+
+                let id = self.parse_identifier()?;
+
+                // todo: allow chained equals
+                self.expect(TokenData::Equal, "equal")?;
+
+                let expr = self.parse_expression()?;
+
+                Decl::VarDecl(id, expr)
+            }
+
+            _ => {
+                let inner = self.statement()?;
+                Decl::Stmt(inner)
+            }
+        };
+
+        self.expect(TokenData::Semicolon, "semicolon")?;
+
+        Ok(decl)
+    }
+
     fn statement(&mut self) -> Result<Stmt, Error> {
         let stmt = match self.peek().data {
+            // 'print' expr ;
             Print => {
                 self.next();
 
                 let inner = self.parse_expression()?;
-                Stmt::PrintStmt(inner)
+                Stmt::Print(inner)
             }
+
+            // bare expression ;
             _ => {
                 let inner = self.parse_expression()?;
                 Stmt::Expr(inner)
             }
         };
-
-        self.expect(TokenData::Semicolon, "semicolon")?;
 
         Ok(stmt)
     }
@@ -234,6 +261,28 @@ impl Parser {
         };
 
         Ok(expr)
+    }
+
+    fn parse_identifier(&mut self) -> Result<Expr, Error> {
+        let Token { data, line } = self.peek();
+        let ident = match &data {
+            Identifier(s) => {
+                // clone the string out of the immutable borrow before modifying self
+                let expr = Expr::new(ExprData::Identifier(s.clone()), *line);
+
+                self.next();
+
+                expr
+            }
+            _ => {
+                return Err(Error::parse_error(
+                    "expected valid identifier".into(),
+                    *line,
+                ));
+            }
+        };
+
+        Ok(ident)
     }
 
     fn primary(&mut self) -> Result<Expr, Error> {

@@ -7,7 +7,7 @@ mod scanner;
 mod token;
 
 use clap::Parser;
-use expr::Program;
+use expr::{Program, Decl, Stmt};
 
 use std::fs;
 use std::io::{self, Write};
@@ -32,28 +32,33 @@ fn print_prompt() {
 }
 
 fn exec_program(program: Program, options: &Args) {
-    for stmt in program {
-        match stmt {
-            expr::Stmt::Expr(e) => {
-                if options.debug_ast {
-                    e.pretty();
-                }
+    for decl in program {
+        match decl {
+            Decl::VarDecl(_, _) => todo!(),
+            Decl::Stmt(stmt) => {
+                match stmt {
+                    Stmt::Expr(e) => {
+                        if options.debug_ast {
+                            e.pretty();
+                        }
 
-                let val = e.eval();
-                match val {
-                    Ok(_v) => (),
-                    Err(e) => println!("{e}"),
-                }
-            }
-            expr::Stmt::PrintStmt(e) => {
-                if options.debug_ast {
-                    e.pretty();
-                }
+                        let val = e.eval();
+                        match val {
+                            Ok(_v) => (),
+                            Err(e) => println!("{e}"),
+                        }
+                    }
+                    Stmt::Print(e) => {
+                        if options.debug_ast {
+                            e.pretty();
+                        }
 
-                let val = e.eval();
-                match val {
-                    Ok(v) => println!("{v:?}"),
-                    Err(e) => println!("{e}"),
+                        let val = e.eval();
+                        match val {
+                            Ok(v) => println!("{v:?}"),
+                            Err(e) => println!("{e}"),
+                        }
+                    }
                 }
             }
         }

@@ -75,7 +75,12 @@ pub enum UnaryOp {
     Inverse,
 }
 
-// program        → statement* EOF ;
+// program        → declaration* EOF ;
+
+// declaration    → varDecl
+//                | statement ;
+//
+// varDecl        → "var" IDENTIFIER ( '=' expression ) ? ;
 //
 // statement      → exprStmt
 //                | printStmt ;
@@ -86,7 +91,14 @@ pub enum UnaryOp {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
     Expr(Expr),
-    PrintStmt(Expr),
+    Print(Expr),
 }
 
-pub type Program = Vec<Stmt>;
+#[derive(Clone, Debug, PartialEq)]
+pub enum Decl {
+    // the first Expr must be an identifier
+    VarDecl(Expr, Expr),
+    Stmt(Stmt),
+}
+
+pub type Program = Vec<Decl>;
