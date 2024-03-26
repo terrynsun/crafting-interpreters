@@ -1,5 +1,5 @@
 use crate::error::{Error, ErrorState};
-use crate::expr::{BinOp, Expr, ExprData, Program, Stmt, UnaryOp, Decl};
+use crate::expr::{BinOp, Decl, Expr, ExprData, Program, Stmt, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},

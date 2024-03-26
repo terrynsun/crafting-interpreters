@@ -1,72 +1,31 @@
+mod config;
 mod error;
 mod eval;
+mod exec;
 mod expr;
 mod parser;
 mod pretty;
 mod scanner;
 mod token;
 
-use clap::Parser;
-use expr::{Program, Decl, Stmt};
-
 use std::fs;
 use std::io::{self, Write};
 
+use config::Config;
 use error::ErrorState;
+use exec::State;
 
-/// Simple program to greet a person
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// File to run
-    file: Option<String>,
-
-    /// AST debug mode
-    #[arg(long)]
-    debug_ast: bool,
-}
+use clap::Parser;
 
 fn print_prompt() {
     print!("> ");
     io::stdout().flush().unwrap();
 }
 
-fn exec_program(program: Program, options: &Args) {
-    for decl in program {
-        match decl {
-            Decl::VarDecl(_, _) => todo!(),
-            Decl::Stmt(stmt) => {
-                match stmt {
-                    Stmt::Expr(e) => {
-                        if options.debug_ast {
-                            e.pretty();
-                        }
-
-                        let val = e.eval();
-                        match val {
-                            Ok(_v) => (),
-                            Err(e) => println!("{e}"),
-                        }
-                    }
-                    Stmt::Print(e) => {
-                        if options.debug_ast {
-                            e.pretty();
-                        }
-
-                        let val = e.eval();
-                        match val {
-                            Ok(v) => println!("{v:?}"),
-                            Err(e) => println!("{e}"),
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn repl(options: Args) -> Result<(), ErrorState> {
+fn repl(options: config::Config) -> Result<(), ErrorState> {
     print_prompt();
+
+    let mut state = State::new(options);
 
     // Line will be None if someone hits ^D
     for (lineno, line) in io::stdin().lines().enumerate() {
@@ -82,14 +41,26 @@ fn repl(options: Args) -> Result<(), ErrorState> {
         // Helpfully append a semicolon to allow bare expressions in the repl.
         line.push(';');
 
-        let tokens = scanner::scan(&line, lineno as u32)?;
-
-        match parser::parse(tokens) {
-            Ok(program) => {
-                exec_program(program, &options);
+        let tokens = match scanner::scan(&line, lineno as u32) {
+            Ok(v) => v,
+            Err(err) => {
+                println!("{err}");
+                print_prompt();
+                continue;
             }
-            Err(e) => println!("{e}"),
-        }
+        };
+
+        let program = match parser::parse(tokens) {
+            Ok(program) => program,
+            Err(err) => {
+                println!("{err}");
+                print_prompt();
+                continue;
+            }
+        };
+
+        let _ = state.exec(program)
+            .map_err(|e| println!("{e}"));
 
         print_prompt();
     }
@@ -99,7 +70,7 @@ fn repl(options: Args) -> Result<(), ErrorState> {
     Ok(())
 }
 
-fn process_file(options: Args) -> Result<(), ErrorState> {
+fn process_file(options: Config) -> Result<(), ErrorState> {
     let contents = fs::read_to_string(options.file.clone().unwrap())
         .expect("Should have been able to read the file");
 
@@ -107,13 +78,16 @@ fn process_file(options: Args) -> Result<(), ErrorState> {
 
     let program = parser::parse(tokens)?;
 
-    exec_program(program, &options);
+    let mut state = State::new(options);
+
+    let _ = state.exec(program)
+        .map_err(|e| println!("{e}"));
 
     Ok(())
 }
 
 fn main() {
-    let args = Args::parse();
+    let args = Config::parse();
     let err = match args.file {
         Some(_) => process_file(args),
         None => repl(args),
