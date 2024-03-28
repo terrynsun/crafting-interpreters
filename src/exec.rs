@@ -52,7 +52,7 @@ impl State {
 
                         let val = e.eval();
                         match val {
-                            Ok(v) => println!("{v:?}"),
+                            Ok(v) => println!("{v}"),
                             Err(e) => println!("{e}"),
                         }
                     }

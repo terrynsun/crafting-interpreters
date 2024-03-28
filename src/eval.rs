@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::error::ErrorState;
 use crate::expr::{BinOp, Expr, ExprData, UnaryOp};
 
@@ -7,6 +9,17 @@ pub enum Value {
     String(String),
     Boolean(bool),
     Nil,
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Number(v) => write!(f, "{v}"),
+            Value::String(v) => write!(f, "{v}"),
+            Value::Boolean(v) => write!(f, "{v}"),
+            Value::Nil => write!(f, "nil"),
+        }
+    }
 }
 
 impl PartialEq for Value {
