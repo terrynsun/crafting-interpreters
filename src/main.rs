@@ -38,8 +38,10 @@ fn repl(options: config::Config) -> Result<(), ErrorState> {
             continue;
         }
 
-        // Helpfully append a semicolon to allow bare expressions in the repl.
-        line.push(';');
+        if !line.ends_with(';') {
+            // Helpfully append a semicolon to allow bare expressions in the repl.
+            line.push(';');
+        }
 
         let tokens = match scanner::scan(&line, lineno as u32) {
             Ok(v) => v,
