@@ -1,4 +1,4 @@
-use crate::expr::{BinOp, Expr, ExprData, UnaryOp};
+use crate::expr::{BinOp, Decl, Expr, ExprData, Stmt, UnaryOp};
 
 macro_rules! indent {
     ( $v:expr, $n:expr) => {{
@@ -11,6 +11,29 @@ macro_rules! pretty {
         println!("{}{}", " ".repeat($indent), $s);
         $right.pretty_recur($indent + 4);
     }};
+}
+
+impl Decl {
+    pub fn pretty(&self) {
+        match self {
+            Decl::VarDecl(id, e) => {
+                println!("var {id:?} =");
+                e.pretty();
+            }
+
+            Decl::Stmt(e) => e.pretty(),
+        }
+        println!();
+    }
+}
+
+impl Stmt {
+    pub fn pretty(&self) {
+        match self {
+            Stmt::Expr(e) => e.pretty(),
+            Stmt::Print(e) => e.pretty(),
+        }
+    }
 }
 
 impl Expr {

@@ -13,7 +13,7 @@ use std::io::{self, Write};
 
 use config::Config;
 use error::ErrorState;
-use exec::State;
+use exec::ExecState;
 
 use clap::Parser;
 
@@ -25,7 +25,7 @@ fn print_prompt() {
 fn repl(options: config::Config) -> Result<(), ErrorState> {
     print_prompt();
 
-    let mut state = State::new(options);
+    let mut state = ExecState::new(options);
 
     // Line will be None if someone hits ^D
     for (lineno, line) in io::stdin().lines().enumerate() {
@@ -59,8 +59,7 @@ fn repl(options: config::Config) -> Result<(), ErrorState> {
             }
         };
 
-        let _ = state.exec(program)
-            .map_err(|e| println!("{e}"));
+        let _ = state.exec(program).map_err(|e| println!("{e}"));
 
         print_prompt();
     }
@@ -78,10 +77,9 @@ fn process_file(options: Config) -> Result<(), ErrorState> {
 
     let program = parser::parse(tokens)?;
 
-    let mut state = State::new(options);
+    let mut state = ExecState::new(options);
 
-    let _ = state.exec(program)
-        .map_err(|e| println!("{e}"));
+    let _ = state.exec(program).map_err(|e| println!("{e}"));
 
     Ok(())
 }

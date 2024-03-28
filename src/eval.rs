@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::error::ErrorState;
+use crate::exec::Environment;
 use crate::expr::{BinOp, Expr, ExprData, UnaryOp};
 
 #[derive(Clone, Debug)]
@@ -35,17 +36,17 @@ impl PartialEq for Value {
 }
 
 impl Expr {
-    pub fn eval(&self) -> Result<Value, ErrorState> {
-        self.data.eval(self.line)
+    pub fn eval(&self, state: &mut Environment) -> Result<Value, ErrorState> {
+        self.data.eval(self.line, state)
     }
 }
 
 impl ExprData {
-    pub fn eval(&self, line: u32) -> Result<Value, ErrorState> {
+    pub fn eval(&self, line: u32, state: &mut Environment) -> Result<Value, ErrorState> {
         match self {
             Self::Binary(op, left_expr, right_expr) => {
-                let left_val = left_expr.eval()?;
-                let right_val = right_expr.eval()?;
+                let left_val = left_expr.eval(state)?;
+                let right_val = right_expr.eval(state)?;
 
                 match op {
                     BinOp::Eq => Ok(Value::Boolean(left_val == right_val)),
@@ -138,7 +139,7 @@ impl ExprData {
             }
 
             Self::Unary(op, e) => {
-                let val = e.eval()?;
+                let val = e.eval(state)?;
                 match op {
                     UnaryOp::Negative => {
                         if let Value::Number(n) = val {
@@ -163,10 +164,7 @@ impl ExprData {
                 }
             }
 
-            Self::Identifier(_) => Err(ErrorState::runtime_error(
-                "! can only be applied to numbers".into(),
-                line,
-            )),
+            Self::Identifier(id) => Ok(state.get(id).unwrap_or(Value::Nil)),
             Self::StringLiteral(s) => Ok(Value::String(s.clone())),
             Self::NumberLiteral(n) => Ok(Value::Number(*n)),
             Self::True => Ok(Value::Boolean(true)),
