@@ -1,17 +1,5 @@
 use std::rc::Rc;
 
-// expression     → literal
-//                | unary
-//                | binary
-//                | grouping ;
-//
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-// grouping       → "(" expression ")" ;
-// unary          → ( "-" | "!" ) expression ;
-// binary         → expression operator expression ;
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
-
 // Precedence: (lowest = highest)
 //
 // Equality (== !=)
@@ -20,7 +8,8 @@ use std::rc::Rc;
 // Factor (/ *)
 // Unary (! -)
 //
-// expression     → equality
+// expression     → assignment
+// assignment     → IDENTIFIER "=" assignment | equality
 // equality       → comparison ( (!= | ==) comparison )*
 // comparison     → term (( "<>" etc ) term)*
 // term           → factor (( "-" | "+" ) factor)*

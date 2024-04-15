@@ -161,7 +161,16 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, Error> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.equality()?;
+        if self.is_at_end() {
+            return Ok(expr);
+        }
+
+
     }
 
     fn equality(&mut self) -> Result<Expr, Error> {
@@ -263,6 +272,7 @@ impl Parser {
         Ok(expr)
     }
 
+    // this is specialized just for var declarations
     fn parse_identifier(&mut self) -> Result<Expr, Error> {
         let Token { data, line } = self.peek();
         let ident = match &data {
@@ -362,7 +372,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::expr::{BinOp, Expr, ExprData, Stmt, UnaryOp};
+    use crate::expr::{BinOp, Decl, Expr, ExprData, Stmt, UnaryOp};
     use crate::token::{Token, TokenData};
     use crate::tokens;
 
@@ -377,7 +387,7 @@ mod tests {
             v.push(Token::new(TokenData::Eof, 0));
 
             let program = parse(v).unwrap();
-            assert_eq!(program[0], Stmt::Expr($expected));
+            assert_eq!(program[0], Decl::Stmt(Stmt::Expr($expected)));
         }};
     }
 
