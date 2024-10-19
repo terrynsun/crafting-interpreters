@@ -362,7 +362,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::expr::{BinOp, Expr, ExprData, Stmt, UnaryOp};
+    use crate::expr::{BinOp, Decl, Expr, ExprData, Stmt, UnaryOp};
     use crate::token::{Token, TokenData};
     use crate::tokens;
 
@@ -377,7 +377,7 @@ mod tests {
             v.push(Token::new(TokenData::Eof, 0));
 
             let program = parse(v).unwrap();
-            assert_eq!(program[0], Stmt::Expr($expected));
+            assert_eq!(program[0], Decl::Stmt(Stmt::Expr($expected)));
         }};
     }
 
