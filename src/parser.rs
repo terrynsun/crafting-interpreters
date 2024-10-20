@@ -122,11 +122,14 @@ impl Parser {
                 let id = self.parse_identifier()?;
 
                 // todo: allow chained equals
-                self.expect(TokenData::Equal, "equal")?;
-
-                let expr = self.parse_expression()?;
-
-                Decl::VarDecl(id, expr)
+                let Token { data, line } = self.peek();
+                if let Equal = &data {
+                    self.next();
+                    let expr = self.parse_expression()?;
+                    Decl::VarDecl(id, expr)
+                } else {
+                    Decl::VarDecl(id, Expr::new(ExprData::Nil, *line))
+                }
             }
 
             _ => {
