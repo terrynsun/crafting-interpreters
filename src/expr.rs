@@ -42,6 +42,8 @@ impl Expr {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExprData {
+    Assignment(Rc<Expr>, Rc<Expr>),
+
     Binary(BinOp, Rc<Expr>, Rc<Expr>),
     Unary(UnaryOp, Rc<Expr>),
 

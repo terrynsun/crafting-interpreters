@@ -16,6 +16,10 @@ impl Environment {
         }
     }
 
+    pub fn contains(&mut self, k: &String) -> bool {
+        self.globals.contains_key(k)
+    }
+
     pub fn insert(&mut self, k: String, v: Value) {
         self.globals.insert(k, v);
     }

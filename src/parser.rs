@@ -15,6 +15,7 @@ struct Parser {
     idx: usize,
 }
 
+// Takes in a Parser `self`, peeks into the next value in the token stream.
 macro_rules! recurse_binary_expr {
     ( $self:expr, $left:expr, $recurse:expr, $( ( $token:path, $binop:path ) $(,)? )* ) => {{
         let Token { data, line } = $self.peek();
@@ -83,22 +84,22 @@ impl Parser {
                 Ok(expr) => program.push(expr),
                 Err(e) => {
                     err_state.add(e);
+
                     loop {
                         let next = self.peek();
                         match next.data {
                             Semicolon => {
-                                // End of statement. Break out of error recovery and try to parse
-                                // next statement.
+                                // End of statement: exit recovery and try to parse next statement.
                                 self.next();
                                 break;
                             }
                             Eof => {
-                                // End of file.
+                                // EOF: exit recovery, and the outer while loop will end.
                                 break;
                             }
                             _ => {
                                 println!("err @ {:?} -- incrementing", next);
-                                // Keep skipping forward.
+                                // Any other token: keep skipping forward.
                                 self.next();
                             }
                         }
@@ -114,14 +115,18 @@ impl Parser {
         }
     }
 
+    // Top level declaration
     fn declaration(&mut self) -> Result<Decl, Error> {
         let decl = match &self.peek().data {
+            // var <ident> = <expr> ;
+            // var <ident> ;
             Var => {
                 self.next();
 
                 let id = self.parse_identifier()?;
 
                 // todo: allow chained equals
+
                 let Token { data, line } = self.peek();
                 if let Equal = &data {
                     self.next();
@@ -164,11 +169,36 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, Error> {
-        self.equality()
+        self.assignment()
     }
+
+    fn assignment(&mut self) -> Result<Expr, Error> {
+        let expr = self.equality()?;
+        if self.is_at_end() {
+            return Ok(expr);
+        }
+
+        // The l-value must be a valid expr (though not all valid exprs are valid l-values).
+
+        let Token { data, line } = self.peek();
+        let line = line.clone();
+        if let Equal = &data {
+            self.next();
+
+            let rvalue = self.equality()?;
+            return Ok(Expr::new(
+                ExprData::Assignment(expr.into(), rvalue.into()),
+                line));
+        }
+
+        Ok(expr)
+    }
+
+    /* Everything from this point down is a simple binary or unary expression. */
 
     fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr = self.comparison()?;
+
         if self.is_at_end() {
             return Ok(expr);
         }
@@ -467,7 +497,8 @@ mod tests {
             ))
         );
 
-        // left-associativity
+        // left-associativity: 1 < 2 > 3 => 1 < (2 > 3)
+        // (this isn't valid because you can't compare numbers and booleans
         assert_expr_parses!(
             tokens![
                 TokenData::Number(1.0),
@@ -530,6 +561,7 @@ mod tests {
             ))
         );
 
+        // 1 * 2
         assert_expr_parses!(
             tokens![
                 TokenData::Number(1.0),
@@ -543,7 +575,7 @@ mod tests {
             ))
         );
 
-        // left-associative on same operator
+        // left-associative on same operator: 1 + 2 + 3
         assert_expr_parses!(
             tokens![
                 TokenData::Number(1.0),
@@ -564,7 +596,7 @@ mod tests {
             ))
         );
 
-        // mult takes precedence over add
+        // mult takes precedence over add: 1 + 2 * 3
         assert_expr_parses!(
             tokens![
                 TokenData::Number(1.0),
@@ -588,6 +620,7 @@ mod tests {
 
     #[test]
     fn grouping() {
+        // (1 + 2) * 3
         assert_expr_parses!(
             tokens![
                 TokenData::LeftParen,

@@ -49,6 +49,11 @@ impl Expr {
 impl ExprData {
     pub fn pretty_recur(&self, indent: usize) {
         match self {
+            Self::Assignment(lvalue, rvalue) => {
+                lvalue.pretty_recur(indent);
+                println!("{}{}", " ".repeat(indent), "=");
+                rvalue.pretty_recur(indent);
+            }
             Self::Binary(op, left, right) => {
                 let op = match op {
                     BinOp::Eq => "==",

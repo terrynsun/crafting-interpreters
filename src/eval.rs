@@ -44,6 +44,32 @@ impl Expr {
 impl ExprData {
     pub fn eval(&self, line: u32, state: &mut Environment) -> Result<Value, ErrorState> {
         match self {
+            Self::Assignment(lvalue, rvalue) => {
+                let val = rvalue.eval(state)?;
+
+                // todo: modified from exec. needed to_string and clone. why?
+                match &lvalue.data {
+                    ExprData::Identifier(s) => {
+                        if state.contains(s) {
+                            state.insert(s.to_string(), val.clone());
+                        } else {
+                            return Err(ErrorState::runtime_error(
+                                format!("Undefined variable \"{s}\"").into(),
+                                line,
+                            ))
+                        }
+                    }
+                    _ => {
+                        return Err(ErrorState::runtime_error(
+                            "expected identifier".to_string(),
+                            line,
+                        ))
+                    }
+                }
+
+                Ok(val)
+            },
+
             Self::Binary(op, left_expr, right_expr) => {
                 let left_val = left_expr.eval(state)?;
                 let right_val = right_expr.eval(state)?;
