@@ -51,7 +51,7 @@ impl ExprData {
                 match &lvalue.data {
                     ExprData::Identifier(s) => {
                         if state.contains(s) {
-                            state.insert(s.to_string(), val.clone());
+                            state.update(s.to_string(), val.clone());
                         } else {
                             return Err(ErrorState::runtime_error(
                                 format!("Undefined variable \"{s}\"").into(),
