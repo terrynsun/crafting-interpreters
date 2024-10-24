@@ -25,8 +25,7 @@ impl Scope {
     }
 
     pub fn get(&self, k: &String) -> Option<Value> {
-        // todo ... don't panic when key doesn't exist
-        Some(self.data[k].clone())
+        self.data.get(k).cloned()
     }
 }
 
@@ -41,7 +40,7 @@ impl Environment {
         }
     }
 
-    pub fn new_scope(&mut self) {
+    pub fn open_scope(&mut self) {
         self.scopes.push(Scope::new())
     }
 
@@ -63,15 +62,17 @@ impl Environment {
     }
 
     // Update the last scope that contains `k`. Used for assignments.
-    pub fn update(&mut self, k: String, v: Value) {
-        // todo: unwrap
-        let scope = self.scopes.iter_mut().rev().find(|s| s.contains(&k)).unwrap();
-        scope.insert(k, v);
+    pub fn update(&mut self, k: String, v: Value) -> Result<(), ()> {
+        if let Some(scope) = self.scopes.iter_mut().rev().find(|s| s.contains(&k)) {
+            scope.insert(k, v);
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 
     pub fn get(&self, k: &String) -> Option<Value> {
-        // todo
-        self.scopes.last().unwrap().get(k)
+        self.scopes.iter().rev().find_map(|s| s.get(&k))
     }
 }
 
@@ -94,36 +95,49 @@ impl ExecState {
                 decl.pretty();
             }
 
-            match decl {
-                Decl::VarDecl(id, expr) => {
-                    let val = expr.eval(&mut self.env)?;
+            self.exec_decl(decl)?;
+        }
 
-                    match id.data {
-                        ExprData::Identifier(s) => {
-                            self.env.insert(s, val);
-                        }
-                        _ => {
-                            panic!("expected identifier");
-                        }
+        Ok(())
+    }
+
+    fn exec_decl(&mut self, decl: Decl) -> Result<(), ErrorState> {
+        match decl {
+            Decl::VarDecl(id, expr) => {
+                let val = expr.eval(&mut self.env)?;
+
+                match id.data {
+                    ExprData::Identifier(s) => {
+                        self.env.insert(s, val);
+                    }
+                    _ => {
+                        panic!("expected identifier");
                     }
                 }
-                Decl::Stmt(stmt) => match stmt {
-                    Stmt::Expr(e) => {
-                        let val = e.eval(&mut self.env);
-                        match val {
-                            Ok(_v) => (),
-                            Err(e) => println!("{e}"),
-                        }
-                    }
-                    Stmt::Print(e) => {
-                        let val = e.eval(&mut self.env);
-                        match val {
-                            Ok(v) => println!("{v}"),
-                            Err(e) => println!("{e}"),
-                        }
-                    }
-                },
             }
+            Decl::Stmt(stmt) => match stmt {
+                Stmt::Expr(e) => {
+                    let val = e.eval(&mut self.env);
+                    match val {
+                        Ok(_v) => (),
+                        Err(e) => println!("{e}"),
+                    }
+                }
+                Stmt::Print(e) => {
+                    let val = e.eval(&mut self.env);
+                    match val {
+                        Ok(v) => println!("{v}"),
+                        Err(e) => println!("{e}"),
+                    }
+                }
+                Stmt::Block(decls) => {
+                    self.env.open_scope();
+                    for d in decls {
+                        self.exec_decl(d)?;
+                    }
+                    self.env.pop_scope();
+                }
+            },
         }
 
         Ok(())

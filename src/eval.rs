@@ -47,11 +47,18 @@ impl ExprData {
             Self::Assignment(lvalue, rvalue) => {
                 let val = rvalue.eval(state)?;
 
-                // todo: modified from exec. needed to_string and clone. why?
+                // todo: modified from exec's decl. needed to_string and clone. why?
                 match &lvalue.data {
                     ExprData::Identifier(s) => {
                         if state.contains(s) {
-                            state.update(s.to_string(), val.clone());
+                            if let Err(()) = state.update(s.to_string(), val.clone()) {
+                                // todo - duplicated logic/error message. In _theory_, we shouldn't
+                                // reach this one because we already checked `contains`.
+                                return Err(ErrorState::runtime_error(
+                                    format!("Undefined variable \"{s}\"").into(),
+                                    line,
+                                ))
+                            }
                         } else {
                             return Err(ErrorState::runtime_error(
                                 format!("Undefined variable \"{s}\"").into(),

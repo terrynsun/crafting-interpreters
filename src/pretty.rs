@@ -32,6 +32,11 @@ impl Stmt {
         match self {
             Stmt::Expr(e) => e.pretty(),
             Stmt::Print(e) => e.pretty(),
+            Stmt::Block(decls) => {
+                for d in decls {
+                    d.pretty();
+                }
+            }
         }
     }
 }

@@ -85,15 +85,18 @@ pub enum UnaryOp {
 // varDecl        → "var" IDENTIFIER ( '=' expression ) ? ;
 //
 // statement      → exprStmt
-//                | printStmt ;
+//                | printStmt
+//                | block ;
 //
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
+// block          → "{" declaration* "}" ;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
     Expr(Expr),
     Print(Expr),
+    Block(Vec<Decl>)
 }
 
 #[derive(Clone, Debug, PartialEq)]

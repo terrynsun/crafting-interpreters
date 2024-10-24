@@ -128,13 +128,16 @@ impl Parser {
                 // todo: allow chained equals
 
                 let Token { data, line } = self.peek();
-                if let Equal = &data {
+                let expr = if let Equal = &data {
                     self.next();
-                    let expr = self.parse_expression()?;
-                    Decl::VarDecl(id, expr)
+                    self.parse_expression()?
                 } else {
-                    Decl::VarDecl(id, Expr::new(ExprData::Nil, *line))
-                }
+                    Expr::new(ExprData::Nil, *line)
+                };
+
+                self.expect(TokenData::Semicolon, "semicolon")?;
+
+                Decl::VarDecl(id, expr)
             }
 
             _ => {
@@ -143,24 +146,57 @@ impl Parser {
             }
         };
 
-        self.expect(TokenData::Semicolon, "semicolon")?;
-
         Ok(decl)
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
+        // Most statements end in semicolons, though blocks do not. That's why the semicolon expect
+        // is repeated in each match block.
+
         let stmt = match self.peek().data {
             // 'print' expr ;
             Print => {
                 self.next();
 
                 let inner = self.parse_expression()?;
+                self.expect(TokenData::Semicolon, "semicolon")?;
                 Stmt::Print(inner)
+            }
+
+            // { declaration* }
+            LeftBrace => {
+                self.next();
+
+                let mut block = Vec::new();
+
+                loop {
+                    // Loop until a closing brace is found. Mutually recurses with declaration().
+                    // The book suggests we also need to check for Eof here, but I think what
+                    // should happen is that declaration() should return an error upon finding an
+                    // unexpected Eof.
+                    if let RightBrace = self.peek().data {
+                        self.next();
+                        break;
+                    }
+
+                    block.push(self.declaration()?);
+                }
+
+                Stmt::Block(block)
+            }
+
+            // ;
+            // Just a bare semicolon. Emits an empty block.
+            Semicolon => {
+                self.next();
+
+                Stmt::Block(Vec::new())
             }
 
             // bare expression ;
             _ => {
                 let inner = self.parse_expression()?;
+                self.expect(TokenData::Semicolon, "semicolon")?;
                 Stmt::Expr(inner)
             }
         };
