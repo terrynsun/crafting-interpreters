@@ -22,6 +22,14 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
+fn handle_line(line: &str, lineno: u32, state: &mut ExecState) -> Result<(), ErrorState> {
+    let tokens = scanner::scan(&line, lineno)?;
+
+    let program = parser::parse(tokens)?;
+
+    state.exec(program)
+}
+
 fn repl(options: config::Config) -> Result<(), ErrorState> {
     print_prompt();
 
@@ -32,42 +40,22 @@ fn repl(options: config::Config) -> Result<(), ErrorState> {
         let line = line.unwrap();
         let mut line = line.trim().to_string();
 
-        // Skip the line if there's only whitespace
-        if line.is_empty() {
-            print_prompt();
-            continue;
-        }
-
+        // Helpfully append a semicolon to allow bare expressions in the repl.
         if !line.ends_with(';') {
-            // Helpfully append a semicolon to allow bare expressions in the repl.
             line.push(';');
         }
 
-        let tokens = match scanner::scan(&line, lineno as u32) {
-            Ok(v) => v,
-            Err(err) => {
-                println!("{err}");
-                print_prompt();
-                continue;
-            }
+        // Print error, rerun loop, never crash on repl error.
+        if let Err(e) = handle_line(&line, lineno as u32, &mut state) {
+            println!("{e}");
         };
-
-        let program = match parser::parse(tokens) {
-            Ok(program) => program,
-            Err(err) => {
-                println!("{err}");
-                print_prompt();
-                continue;
-            }
-        };
-
-        let _ = state.exec(program).map_err(|e| println!("{e}"));
 
         print_prompt();
     }
 
-    // Avoid leaving prompt printed w/o newline
+    // Print bare newline to gracefully avoid leaving the prompt printed in terminal w/o newline.
     println!();
+
     Ok(())
 }
 
@@ -81,9 +69,7 @@ fn process_file(options: Config) -> Result<(), ErrorState> {
 
     let mut state = ExecState::new(options);
 
-    let _ = state.exec(program).map_err(|e| println!("{e}"));
-
-    Ok(())
+    state.exec(program)
 }
 
 fn main() {
@@ -94,7 +80,7 @@ fn main() {
     };
 
     if let Err(e) = err {
-        println!("{}", e);
+        println!("{e}");
         std::process::exit(65);
     }
 }
