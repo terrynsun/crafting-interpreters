@@ -86,6 +86,8 @@ pub enum UnaryOp {
 //                  ( "else" statement )? ;
 //
 // whileStmt      → "while" "(" expression ")" statement ;
+//
+// forStmt        → "for" "(" declaration ; expression ; statement ")" statement ;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
@@ -93,7 +95,11 @@ pub enum Stmt {
     Print(Expr),
     Block(Vec<Decl>),
 
+    // condition, then, else
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
+
+    // forStmts desugar into `Stmt::While`s
+    // condition, body
     While(Expr, Box<Stmt>),
 }
 

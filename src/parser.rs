@@ -98,7 +98,6 @@ impl Parser {
                                 break;
                             }
                             _ => {
-                                println!("err @ {:?} -- incrementing", next);
                                 // Any other token: keep skipping forward.
                                 self.next();
                             }
@@ -123,21 +122,10 @@ impl Parser {
             Var => {
                 self.next();
 
-                let id = self.parse_identifier()?;
-
-                // todo: allow chained equals
-
-                let Token { data, line } = self.peek();
-                let expr = if let Equal = &data {
-                    self.next();
-                    self.parse_expression()?
-                } else {
-                    Expr::new(ExprData::Nil, *line)
-                };
-
+                let d = self.inner_declaration()?;
                 self.expect(TokenData::Semicolon, "semicolon")?;
 
-                Decl::VarDecl(id, expr)
+                d
             }
 
             _ => {
@@ -147,6 +135,20 @@ impl Parser {
         };
 
         Ok(decl)
+    }
+
+    fn inner_declaration(&mut self) -> Result<Decl, Error> {
+        let id = self.parse_identifier()?;
+
+        let Token { data, line } = self.peek();
+        let expr = if let Equal = &data {
+            self.next();
+            self.parse_expression()?
+        } else {
+            Expr::new(ExprData::Nil, *line)
+        };
+
+        Ok(Decl::VarDecl(id, expr))
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
@@ -217,6 +219,35 @@ impl Parser {
                 let body = self.statement()?;
 
                 Stmt::While(condition, Box::new(body))
+            }
+
+            // "for" "(" declaration ; expression ; statement ")" statement ;
+            For => {
+                self.next();
+
+                self.expect(TokenData::LeftParen, "left parens")?;
+                self.expect(TokenData::Var, "var")?;
+                let declaration = self.inner_declaration()?;
+
+                self.expect(TokenData::Semicolon, "semicolon")?;
+
+                let condition = self.parse_expression()?;
+                self.expect(TokenData::Semicolon, "semicolon")?;
+
+                let incrementor = self.parse_expression()?;
+                self.expect(TokenData::RightParen, "right parens")?;
+
+                let for_body = self.statement()?;
+
+                let while_body = vec![
+                    Decl::Stmt(for_body),
+                    Decl::Stmt(Stmt::Expr(incrementor)),
+                ];
+
+                Stmt::Block(vec![
+                    declaration,
+                    Decl::Stmt(Stmt::While(condition, Box::new(Stmt::Block(while_body)))),
+                ])
             }
 
             // ;

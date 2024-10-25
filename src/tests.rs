@@ -90,4 +90,61 @@ while (a < 5) {
 
         assert_print(text, output);
     }
+
+    #[test]
+    fn test_for() {
+        let text = r#"
+for (var a = 1; a < 5; a = a + 1) {
+    print a;
+}
+"#;
+
+        let output = r#"1
+2
+3
+4
+"#;
+
+        assert_print(text, output);
+    }
+
+    #[test]
+    /// From 9.5.1
+    fn test_fib() {
+        let text = r#"
+var a = 0;
+var temp;
+
+for (var b = 1; a < 10000; b = temp + b) {
+  print a;
+  temp = a;
+  a = b;
+}
+"#;
+
+        let output = r#"0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+144
+233
+377
+610
+987
+1597
+2584
+4181
+6765
+"#;
+
+        assert_print(text, output);
+    }
 }
