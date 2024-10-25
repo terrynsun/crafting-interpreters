@@ -185,6 +185,27 @@ impl Parser {
                 Stmt::Block(block)
             }
 
+            // "if" "(" expression ")" statement
+            // ( "else" statement )? ;
+            If => {
+                self.next();
+
+                self.expect(TokenData::LeftParen, "left parens")?;
+                let condition = self.parse_expression()?;
+                self.expect(TokenData::RightParen, "right parens")?;
+
+                let then_stmt = self.statement()?;
+
+                let else_stmt = if let Else = self.peek().data {
+                    self.next();
+                    Some(Box::new(self.statement()?))
+                } else {
+                    None
+                };
+
+                Stmt::If(condition, Box::new(then_stmt), else_stmt)
+            }
+
             // ;
             // Just a bare semicolon. Emits an empty block.
             Semicolon => {

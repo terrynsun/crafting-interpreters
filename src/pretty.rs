@@ -32,10 +32,17 @@ impl Stmt {
         match self {
             Stmt::Expr(e) => e.pretty(),
             Stmt::Print(e) => e.pretty(),
+            // todo
             Stmt::Block(decls) => {
                 for d in decls {
                     d.pretty();
                 }
+            }
+            // todo
+            Stmt::If(condition, then_expr, else_expr) => {
+                condition.pretty();
+                then_expr.pretty();
+                else_expr.as_ref().map(|e| e.pretty());
             }
         }
     }

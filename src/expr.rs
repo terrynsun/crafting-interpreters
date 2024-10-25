@@ -85,9 +85,12 @@ pub enum UnaryOp {
 // varDecl        → "var" IDENTIFIER ( '=' expression ) ? ;
 //
 // statement      → exprStmt
+//                | ifStmt
 //                | printStmt
 //                | block ;
 //
+// ifStmt         → "if" "(" expression ")" statement
+//                  ( "else" statement )? ;
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
 // block          → "{" declaration* "}" ;
@@ -96,13 +99,16 @@ pub enum UnaryOp {
 pub enum Stmt {
     Expr(Expr),
     Print(Expr),
-    Block(Vec<Decl>)
+    Block(Vec<Decl>),
+
+    If(Expr, Box<Stmt>, Option<Box<Stmt>>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Decl {
     // the first Expr must be an identifier
     VarDecl(Expr, Expr),
+
     Stmt(Stmt),
 }
 

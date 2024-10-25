@@ -16,6 +16,18 @@ impl Value {
     pub fn is_nil(&self) -> bool {
         matches!(self, Value::Nil)
     }
+
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Value::Number(n) => *n != 0.0,
+
+            Value::String(s) => s != "",
+
+            Value::Boolean(b) => *b,
+
+            Value::Nil => false,
+        }
+    }
 }
 
 impl Display for Value {

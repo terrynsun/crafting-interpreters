@@ -55,4 +55,20 @@ global c
 
         assert_print(text, output);
     }
+
+    #[test]
+    fn test_if() {
+        let text = r#"
+var a = 1;
+if (a)
+    print "ok";
+else
+    print "fail";
+"#;
+
+        let output = r#"ok
+"#;
+
+        assert_print(text, output);
+    }
 }

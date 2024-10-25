@@ -5,6 +5,7 @@ use crate::error::ErrorState;
 use crate::eval::Value;
 use crate::expr::{Decl, ExprData, Program, Stmt};
 
+/// Simple wrapper around one scope.
 pub struct Scope {
     data: HashMap<String, Value>,
 }
@@ -29,6 +30,7 @@ impl Scope {
     }
 }
 
+/// A stack of nested scopes.
 pub struct Environment {
     scopes: Vec<Scope>,
 }
@@ -56,12 +58,12 @@ impl Environment {
         self.scopes.iter().any(|s| s.contains(k))
     }
 
-    // Insert `k` into the topmost scope. Used for declarations.
+    /// Insert `k` into the topmost scope. Used for declarations.
     pub fn insert(&mut self, k: String, v: Value) {
         self.scopes.last_mut().unwrap().insert(k, v);
     }
 
-    // Update the last scope that contains `k`. Used for assignments.
+    /// Update the last scope that contains `k`. Used for assignments.
     pub fn update(&mut self, k: String, v: Value) -> Result<(), ()> {
         if let Some(scope) = self.scopes.iter_mut().rev().find(|s| s.contains(&k)) {
             scope.insert(k, v);
@@ -158,23 +160,39 @@ impl ExecState {
                     }
                 }
             }
-            Decl::Stmt(stmt) => match stmt {
-                Stmt::Expr(e) => {
-                    self.value = e.eval(&mut self.env)?;
-                }
-                Stmt::Print(e) => {
-                    let val = e.eval(&mut self.env)?;
+            Decl::Stmt(stmt) => self.eval_stmt(stmt)?,
+        }
 
-                    self.print(&val.to_string());
+        Ok(())
+    }
+
+    fn eval_stmt(&mut self, stmt: Stmt) -> Result<(), ErrorState> {
+        match stmt {
+            Stmt::Expr(e) => {
+                self.value = e.eval(&mut self.env)?;
+            }
+            Stmt::Print(e) => {
+                let val = e.eval(&mut self.env)?;
+
+                self.print(&val.to_string());
+            }
+            Stmt::Block(decls) => {
+                self.env.open_scope();
+                for d in decls {
+                    self.exec_decl(d)?;
                 }
-                Stmt::Block(decls) => {
-                    self.env.open_scope();
-                    for d in decls {
-                        self.exec_decl(d)?;
+                self.env.pop_scope();
+            }
+            Stmt::If(condition_expr, then_stmt, else_stmt) => {
+                let condition = condition_expr.eval(&mut self.env)?;
+                if condition.is_truthy() {
+                    self.eval_stmt(*then_stmt)?;
+                } else {
+                    if let Some(else_stmt) = else_stmt {
+                        self.eval_stmt(*else_stmt)?;
                     }
-                    self.env.pop_scope();
                 }
-            },
+            }
         }
 
         Ok(())
