@@ -206,6 +206,19 @@ impl Parser {
                 Stmt::If(condition, Box::new(then_stmt), else_stmt)
             }
 
+            // "while" "(" expression ")" statement
+            While => {
+                self.next();
+
+                self.expect(TokenData::LeftParen, "left parens")?;
+                let condition = self.parse_expression()?;
+                self.expect(TokenData::RightParen, "right parens")?;
+
+                let body = self.statement()?;
+
+                Stmt::While(condition, Box::new(body))
+            }
+
             // ;
             // Just a bare semicolon. Emits an empty block.
             Semicolon => {

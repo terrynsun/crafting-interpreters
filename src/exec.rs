@@ -131,7 +131,7 @@ impl ExecState {
         }
     }
 
-    pub fn exec(&mut self, program: Program) -> Result<(), ErrorState> {
+    pub fn exec(&mut self, program: &Program) -> Result<(), ErrorState> {
         self.value = Value::Nil;
 
         for decl in program {
@@ -145,14 +145,14 @@ impl ExecState {
         Ok(())
     }
 
-    fn exec_decl(&mut self, decl: Decl) -> Result<(), ErrorState> {
+    fn exec_decl(&mut self, decl: &Decl) -> Result<(), ErrorState> {
         match decl {
             Decl::VarDecl(id, expr) => {
                 let val = expr.eval(&mut self.env)?;
 
-                match id.data {
+                match &id.data {
                     ExprData::Identifier(s) => {
-                        self.env.insert(s, val);
+                        self.env.insert(s.clone(), val);
                     }
                     _ => {
                         // I think this should have been checked during parsing, which is why it's
@@ -167,7 +167,7 @@ impl ExecState {
         Ok(())
     }
 
-    fn eval_stmt(&mut self, stmt: Stmt) -> Result<(), ErrorState> {
+    fn eval_stmt(&mut self, stmt: &Stmt) -> Result<(), ErrorState> {
         match stmt {
             Stmt::Expr(e) => {
                 self.value = e.eval(&mut self.env)?;
@@ -187,10 +187,20 @@ impl ExecState {
             Stmt::If(condition_expr, then_stmt, else_stmt) => {
                 let condition = condition_expr.eval(&mut self.env)?;
                 if condition.is_truthy() {
-                    self.eval_stmt(*then_stmt)?;
+                    self.eval_stmt(then_stmt)?;
                 } else {
                     if let Some(else_stmt) = else_stmt {
-                        self.eval_stmt(*else_stmt)?;
+                        self.eval_stmt(else_stmt)?;
+                    }
+                }
+            }
+            Stmt::While(condition_expr, body) => {
+                loop {
+                    let condition = condition_expr.eval(&mut self.env)?;
+                    if condition.is_truthy() {
+                        self.eval_stmt(body)?;
+                    } else {
+                        break;
                     }
                 }
             }

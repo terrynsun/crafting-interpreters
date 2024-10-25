@@ -29,7 +29,7 @@ fn handle_line(line: &str, lineno: u32, state: &mut ExecState) -> Result<(), Err
 
     let program = parser::parse(tokens)?;
 
-    state.exec(program)?;
+    state.exec(&program)?;
 
     if !state.value.is_nil() {
         println!("{}", state.value);
@@ -77,7 +77,7 @@ fn process_file(options: Config) -> Result<(), ErrorState> {
 
     let mut state = ExecState::new(options);
 
-    state.exec(program)
+    state.exec(&program)
 }
 
 fn main() {

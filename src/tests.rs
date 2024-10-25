@@ -6,7 +6,7 @@ mod end_to_end {
         let mut state = ExecState::new_test();
         let tokens = scanner::scan(text, 0).unwrap();
         let program = parser::parse(tokens).unwrap();
-        state.exec(program).unwrap();
+        state.exec(&program).unwrap();
         state.assert_output(expected_output);
     }
 
@@ -67,6 +67,25 @@ else
 "#;
 
         let output = r#"ok
+"#;
+
+        assert_print(text, output);
+    }
+
+    #[test]
+    fn test_while() {
+        let text = r#"
+var a = 1;
+while (a < 5) {
+    print a;
+    a = a + 1;
+}
+"#;
+
+        let output = r#"1
+2
+3
+4
 "#;
 
         assert_print(text, output);

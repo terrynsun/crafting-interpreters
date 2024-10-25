@@ -44,6 +44,11 @@ impl Stmt {
                 then_expr.pretty();
                 else_expr.as_ref().map(|e| e.pretty());
             }
+            // todo
+            Stmt::While(condition, body) => {
+                condition.pretty();
+                body.pretty();
+            }
         }
     }
 }
