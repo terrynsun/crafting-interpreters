@@ -71,7 +71,7 @@ fn process_file(options: Config) -> Result<(), ErrorState> {
     let contents = fs::read_to_string(options.file.clone().unwrap())
         .expect("Should have been able to read the file");
 
-    let tokens = scanner::scan(&contents, 0)?;
+    let tokens = scanner::scan(&contents, 1)?;
 
     let program = parser::parse(tokens)?;
 
