@@ -4,6 +4,7 @@ use crate::error::ErrorState;
 use crate::exec::Environment;
 use crate::grammar::{BinOp, Expr, ExprData, UnaryOp};
 
+/// Represents a single value in lox.
 #[derive(Clone, Debug)]
 pub enum Value {
     Number(f32),
@@ -54,6 +55,8 @@ impl PartialEq for Value {
 }
 
 impl Expr {
+    /// Evaluates an expression to a value. Takes in an environment to evaluate other global and
+    /// local variables.
     pub fn eval(&self, state: &mut Environment) -> Result<Value, ErrorState> {
         self.data.eval(self.line, state)
     }

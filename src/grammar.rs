@@ -1,17 +1,5 @@
 use std::rc::Rc;
 
-// expression     → literal
-//                | unary
-//                | binary
-//                | grouping ;
-//
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-// grouping       → "(" expression ")" ;
-// unary          → ( "-" | "!" ) expression ;
-// binary         → expression operator expression ;
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
-
 // Precedence: (lowest = highest)
 //
 // Equality (== !=)
@@ -106,7 +94,7 @@ pub enum Stmt {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Decl {
-    // the first Expr must be an identifier
+    // The first Expr must be an identifier
     VarDecl(Expr, Expr),
 
     Stmt(Stmt),

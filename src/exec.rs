@@ -81,6 +81,7 @@ impl Environment {
 pub struct ExecState {
     config: Config,
 
+    /// Variable store.
     env: Environment,
 
     /// If this value is populated, write print statements into this string so they can be captured
