@@ -81,8 +81,11 @@ pub struct ExecState {
 
     env: Environment,
 
-    pub print_buffer: String,
+    /// If this value is populated, write print statements into this string so they can be captured
+    /// for tests.
+    print_target: Option<String>,
 
+    /// The last value that was evaluated. Stored here so the repl can print it.
     pub value: Value,
 }
 
@@ -91,24 +94,49 @@ impl ExecState {
         Self {
             config,
             env: Environment::new(),
-            print_buffer: String::new(),
+            print_target: None,
             value: Value::Nil,
         }
     }
 
-    fn flush_output(&mut self) {
-        print!("{}", self.print_buffer);
-        self.print_buffer = String::new();
+    #[cfg(test)]
+    pub fn new_test() -> Self {
+        Self {
+            config: Config {
+                file: None,
+                debug_ast: false,
+            },
+            env: Environment::new(),
+            print_target: Some(String::new()),
+            value: Value::Nil,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn assert_output(&self, expected: &str) {
+        if let Some(s) = &self.print_target {
+            assert_eq!(*s, expected);
+        }
+    }
+
+    fn print(&mut self, output: &str) {
+        if let Some(s) = &mut self.print_target {
+            s.push_str(output);
+            s.push_str("\n");
+        } else {
+            println!("{}", output);
+        }
     }
 
     pub fn exec(&mut self, program: Program) -> Result<(), ErrorState> {
+        self.value = Value::Nil;
+
         for decl in program {
             if self.config.debug_ast {
                 decl.pretty();
             }
 
             self.exec_decl(decl)?;
-            self.flush_output();
         }
 
         Ok(())
@@ -137,8 +165,7 @@ impl ExecState {
                 Stmt::Print(e) => {
                     let val = e.eval(&mut self.env)?;
 
-                    self.print_buffer.push_str(&val.to_string());
-                    self.print_buffer.push_str("\n");
+                    self.print(&val.to_string());
                 }
                 Stmt::Block(decls) => {
                     self.env.open_scope();

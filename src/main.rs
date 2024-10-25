@@ -8,6 +8,8 @@ mod pretty;
 mod scanner;
 mod token;
 
+mod tests;
+
 use std::fs;
 use std::io::{self, Write};
 
