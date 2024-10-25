@@ -27,7 +27,13 @@ fn handle_line(line: &str, lineno: u32, state: &mut ExecState) -> Result<(), Err
 
     let program = parser::parse(tokens)?;
 
-    state.exec(program)
+    state.exec(program)?;
+
+    if !state.value.is_nil() {
+        println!("{}", state.value);
+    }
+
+    Ok(())
 }
 
 fn repl(options: config::Config) -> Result<(), ErrorState> {

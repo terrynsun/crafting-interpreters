@@ -78,7 +78,12 @@ impl Environment {
 
 pub struct ExecState {
     config: Config,
+
     env: Environment,
+
+    pub print_buffer: String,
+
+    pub value: Value,
 }
 
 impl ExecState {
@@ -86,7 +91,14 @@ impl ExecState {
         Self {
             config,
             env: Environment::new(),
+            print_buffer: String::new(),
+            value: Value::Nil,
         }
+    }
+
+    fn flush_output(&mut self) {
+        print!("{}", self.print_buffer);
+        self.print_buffer = String::new();
     }
 
     pub fn exec(&mut self, program: Program) -> Result<(), ErrorState> {
@@ -96,6 +108,7 @@ impl ExecState {
             }
 
             self.exec_decl(decl)?;
+            self.flush_output();
         }
 
         Ok(())
@@ -111,24 +124,21 @@ impl ExecState {
                         self.env.insert(s, val);
                     }
                     _ => {
+                        // I think this should have been checked during parsing, which is why it's
+                        // a panic.
                         panic!("expected identifier");
                     }
                 }
             }
             Decl::Stmt(stmt) => match stmt {
                 Stmt::Expr(e) => {
-                    let val = e.eval(&mut self.env);
-                    match val {
-                        Ok(_v) => (),
-                        Err(e) => println!("{e}"),
-                    }
+                    self.value = e.eval(&mut self.env)?;
                 }
                 Stmt::Print(e) => {
-                    let val = e.eval(&mut self.env);
-                    match val {
-                        Ok(v) => println!("{v}"),
-                        Err(e) => println!("{e}"),
-                    }
+                    let val = e.eval(&mut self.env)?;
+
+                    self.print_buffer.push_str(&val.to_string());
+                    self.print_buffer.push_str("\n");
                 }
                 Stmt::Block(decls) => {
                     self.env.open_scope();
