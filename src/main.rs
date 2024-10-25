@@ -2,7 +2,7 @@ mod config;
 mod error;
 mod eval;
 mod exec;
-mod expr;
+mod grammar;
 mod parser;
 mod pretty;
 mod scanner;

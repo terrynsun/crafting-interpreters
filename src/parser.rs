@@ -1,5 +1,5 @@
 use crate::error::{Error, ErrorState};
-use crate::expr::{BinOp, Decl, Expr, ExprData, Program, Stmt, UnaryOp};
+use crate::grammar::{BinOp, Decl, Expr, ExprData, Program, Stmt, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -452,7 +452,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::expr::{BinOp, Decl, Expr, ExprData, Stmt, UnaryOp};
+    use crate::grammar::{BinOp, Decl, Expr, ExprData, Stmt, UnaryOp};
     use crate::token::{Token, TokenData};
     use crate::tokens;
 

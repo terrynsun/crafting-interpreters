@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::config::Config;
 use crate::error::ErrorState;
 use crate::eval::Value;
-use crate::expr::{Decl, ExprData, Program, Stmt};
+use crate::grammar::{Decl, ExprData, Program, Stmt};
 
 /// Simple wrapper around one scope.
 pub struct Scope {
