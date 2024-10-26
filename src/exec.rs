@@ -3,9 +3,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::callable::{LoxFn, NativeFn};
 use crate::config::Config;
 use crate::error::ErrorState;
-use crate::eval::{LoxFn, NativeFn, Value};
+use crate::eval::Value;
 use crate::grammar::{Decl, Program, Stmt};
 
 /// Simple wrapper around one scope.

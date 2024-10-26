@@ -1,9 +1,9 @@
 use std::fmt::Display;
-use std::rc::Rc;
 
+use crate::callable::{Callable, LoxFn, NativeFn};
 use crate::error::ErrorState;
 use crate::exec::ExecState;
-use crate::grammar::{BinOp, Expr, ExprData, Stmt, UnaryOp};
+use crate::grammar::{BinOp, Expr, ExprData, UnaryOp};
 
 /// Represents a single value in lox.
 #[derive(Clone, Debug)]
@@ -15,74 +15,6 @@ pub enum Value {
     String(String),
     Boolean(bool),
     Nil,
-}
-
-#[derive(Clone)]
-pub struct NativeFn {
-    // array of identifiers
-    parameters: Vec<String>,
-
-    body: Rc<dyn Fn(&mut ExecState, Vec<Value>) -> Result<Value, ErrorState>>,
-}
-
-impl NativeFn {
-    pub fn new(
-        parameters: Vec<String>,
-        body: Rc<dyn Fn(&mut ExecState, Vec<Value>) -> Result<Value, ErrorState>>,
-    ) -> Self {
-        Self { parameters, body }
-    }
-
-    fn arity(&self) -> u32 {
-        self.parameters.len() as u32
-    }
-
-    pub fn call(&self, state: &mut ExecState, args: Vec<Value>) -> Result<Value, ErrorState> {
-        for (arg, param) in args.iter().zip(self.parameters.iter()) {
-            state.env.insert(param.clone(), arg.clone());
-        }
-
-        (self.body)(state, args)
-    }
-}
-
-impl std::fmt::Debug for NativeFn {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<native fn>")
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct LoxFn {
-    // array of identifiers
-    parameters: Vec<String>,
-
-    body: Stmt,
-}
-
-impl LoxFn {
-    pub fn new(parameters: Vec<String>, body: Stmt) -> Self {
-        Self { parameters, body }
-    }
-
-    fn arity(&self) -> u32 {
-        self.parameters.len() as u32
-    }
-
-    pub fn call(&self, state: &mut ExecState, args: Vec<Value>) -> Result<Value, ErrorState> {
-        for (arg, param) in args.iter().zip(self.parameters.iter()) {
-            state.env.insert(param.clone(), arg.clone());
-        }
-
-        if let Stmt::Block(decls) = &self.body {
-            for d in decls {
-                state.exec_decl(&d)?;
-            }
-            // todo: check for return statement
-        }
-
-        Ok(Value::Nil)
-    }
 }
 
 impl Value {
@@ -139,6 +71,19 @@ impl Expr {
     }
 }
 
+fn handle_fn_call(state: &mut ExecState, f: impl Callable, args: Vec<Value>, line: u32) -> Result<Value, ErrorState> {
+    if f.arity() != args.len() as u32 {
+        return Err(ErrorState::runtime_error(
+            format!("Incorrect number of arguments for function call: expected {}, received {}",
+                f.arity(),
+                args.len()
+                ).into(),
+            line,
+        ));
+    }
+    f.call(state, args)
+}
+
 impl ExprData {
     pub fn eval(&self, line: u32, state: &mut ExecState) -> Result<Value, ErrorState> {
         match self {
@@ -155,30 +100,8 @@ impl ExprData {
                 state.env.open_scope();
 
                 let value = match callee_fn {
-                    Value::NativeFn(f) => {
-                        if f.arity() != arg_values.len() as u32 {
-                            return Err(ErrorState::runtime_error(
-                                format!("Incorrect number of arguments for function call: expected {}, received {}",
-                                    f.arity(),
-                                    arg_values.len()
-                                    ).into(),
-                                line,
-                            ));
-                        }
-                        f.call(state, arg_values)
-                    }
-                    Value::LoxFn(f) => {
-                        if f.arity() != arg_values.len() as u32 {
-                            return Err(ErrorState::runtime_error(
-                                format!("Incorrect number of arguments for function call: expected {}, received {}",
-                                    f.arity(),
-                                    arg_values.len()
-                                    ).into(),
-                                line,
-                            ));
-                        }
-                        f.call(state, arg_values)
-                    }
+                    Value::NativeFn(f) => handle_fn_call(state, f, arg_values, line),
+                    Value::LoxFn(f) => handle_fn_call(state, f, arg_values, line),
                     _ => {
                         return Err(ErrorState::runtime_error(
                             "not a valid call target".into(),

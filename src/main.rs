@@ -1,3 +1,4 @@
+mod callable;
 mod config;
 mod error;
 mod eval;
