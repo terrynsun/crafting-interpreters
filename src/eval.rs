@@ -33,6 +33,10 @@ impl NativeFn {
         Self { parameters, body }
     }
 
+    fn arity(&self) -> u32 {
+        self.parameters.len() as u32
+    }
+
     pub fn call(&self, state: &mut ExecState, args: Vec<Value>) -> Result<Value, ErrorState> {
         for (arg, param) in args.iter().zip(self.parameters.iter()) {
             state.env.insert(param.clone(), arg.clone());
@@ -151,9 +155,36 @@ impl ExprData {
                 state.env.open_scope();
 
                 let value = match callee_fn {
-                    Value::NativeFn(f) => f.call(state, arg_values),
-                    Value::LoxFn(f) => f.call(state, arg_values),
-                    _ => panic!("not a valid call target"),
+                    Value::NativeFn(f) => {
+                        if f.arity() != arg_values.len() as u32 {
+                            return Err(ErrorState::runtime_error(
+                                format!("Incorrect number of arguments for function call: expected {}, received {}",
+                                    f.arity(),
+                                    arg_values.len()
+                                    ).into(),
+                                line,
+                            ));
+                        }
+                        f.call(state, arg_values)
+                    }
+                    Value::LoxFn(f) => {
+                        if f.arity() != arg_values.len() as u32 {
+                            return Err(ErrorState::runtime_error(
+                                format!("Incorrect number of arguments for function call: expected {}, received {}",
+                                    f.arity(),
+                                    arg_values.len()
+                                    ).into(),
+                                line,
+                            ));
+                        }
+                        f.call(state, arg_values)
+                    }
+                    _ => {
+                        return Err(ErrorState::runtime_error(
+                            "not a valid call target".into(),
+                            line,
+                        ));
+                    }
                 };
 
                 state.env.pop_scope();
