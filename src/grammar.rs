@@ -1,20 +1,23 @@
 use std::rc::Rc;
 
-// Precedence: (lowest = highest)
+// Precedence:
+// Lowest in list = highest priority. The recursive descent parser starts at the top and parses
+// downward, so remember that lowest things on this list have their logic executed first.
 //
-// Equality (== !=)
-// Comparison (> >= < <=)
-// Term (- +)
-// Factor (/ *)
-// Unary (! -)
+// expression     → assignment ;
 //
-// expression     → equality
-// equality       → comparison ( (!= | ==) comparison )*
-// comparison     → term (( "<>" etc ) term)*
-// term           → factor (( "-" | "+" ) factor)*
-// factor         → unary ( ("/" | "*") unary )*
-// unary          → ("!" | "-") unary | primary
-// primary        → literal | "(" expression ")"
+// assignment     → IDENTIFIER "=" assignment | equality ;
+//
+// equality       → comparison ( (!= | ==) comparison )* ;
+// comparison     → term (( "<>" etc ) term)* ;
+// term           → factor (( "-" | "+" ) factor)* ;
+// factor         → unary ( ("/" | "*") unary )* ;
+// unary          → ("!" | "-") unary | call ;
+//
+// call           → primary ( "(" arguments? ")" )* ;
+// arguments      → expression ( "," expression )* ;
+//
+// primary        → literal | "(" expression ")" ;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Expr {
@@ -30,12 +33,15 @@ impl Expr {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExprData {
+    FnCall(Rc<Expr>, Vec<Expr>),
+
+    // todo: allow chained assignments
     Assignment(Rc<Expr>, Rc<Expr>),
 
     Binary(BinOp, Rc<Expr>, Rc<Expr>),
     Unary(UnaryOp, Rc<Expr>),
 
-    NumberLiteral(f32),
+    NumberLiteral(f64),
     Identifier(String),
     StringLiteral(String),
 

@@ -15,7 +15,8 @@ struct Parser {
     idx: usize,
 }
 
-// Takes in a Parser `self`, peeks into the next value in the token stream.
+/// Takes in a Parser `self`, peeks into the next value in the token stream to try to construct a
+/// binary expression.
 macro_rules! recurse_binary_expr {
     ( $self:expr, $left:expr, $recurse:expr, $( ( $token:path, $binop:path ) $(,)? )* ) => {{
         let Token { data, line } = $self.peek();
@@ -239,10 +240,7 @@ impl Parser {
 
                 let for_body = self.statement()?;
 
-                let while_body = vec![
-                    Decl::Stmt(for_body),
-                    Decl::Stmt(Stmt::Expr(incrementor)),
-                ];
+                let while_body = vec![Decl::Stmt(for_body), Decl::Stmt(Stmt::Expr(incrementor))];
 
                 Stmt::Block(vec![
                     declaration,
@@ -269,6 +267,7 @@ impl Parser {
         Ok(stmt)
     }
 
+    // Top level assignment that just forwards to the first recursive function.
     fn parse_expression(&mut self) -> Result<Expr, Error> {
         self.assignment()
     }
@@ -287,19 +286,20 @@ impl Parser {
             self.next();
 
             let rvalue = self.equality()?;
+
             return Ok(Expr::new(
                 ExprData::Assignment(expr.into(), rvalue.into()),
-                line));
+                line,
+            ));
         }
 
         Ok(expr)
     }
 
-    /* Everything from this point down is a simple binary or unary expression. */
+    /* The mostly-macro-generated binary section. */
 
     fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr = self.comparison()?;
-
         if self.is_at_end() {
             return Ok(expr);
         }
@@ -376,6 +376,8 @@ impl Parser {
         Ok(expr)
     }
 
+    /* Unary, plus higher precedence grammars. */
+
     fn unary(&mut self) -> Result<Expr, Error> {
         let Token { data, line } = self.peek();
         let line = *line;
@@ -391,32 +393,59 @@ impl Parser {
                 let e = self.unary()?;
                 Expr::new(ExprData::Unary(UnaryOp::Inverse, e.into()), line)
             }
-            _ => self.primary()?,
+
+            _ => self.fn_call()?,
         };
 
         Ok(expr)
     }
 
-    fn parse_identifier(&mut self) -> Result<Expr, Error> {
-        let Token { data, line } = self.peek();
-        let ident = match &data {
-            Identifier(s) => {
-                // clone the string out of the immutable borrow before modifying self
-                let expr = Expr::new(ExprData::Identifier(s.clone()), *line);
+    fn fn_call(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.primary()?;
 
+        // Loops here because function calls can be chained: foo()().
+        loop {
+            let Token { data, line } = self.peek();
+            let line = *line;
+
+            if matches!(data, LeftParen) {
                 self.next();
+                let args = self.parse_fn_arguments()?;
+                expr = Expr::new(ExprData::FnCall(expr.into(), args), line);
+            } else {
+                break;
+            };
+        }
 
-                expr
-            }
-            _ => {
-                return Err(Error::parse_error(
-                    "expected valid identifier".into(),
-                    *line,
-                ));
-            }
-        };
+        Ok(expr)
+    }
 
-        Ok(ident)
+    fn parse_fn_arguments(&mut self) -> Result<Vec<Expr>, Error> {
+        let mut args = vec![];
+
+        // No arguments, exit early
+        if matches!(self.peek().data, RightParen) {
+            self.next();
+            return Ok(args);
+        }
+
+        loop {
+            let a = self.parse_expression()?;
+            args.push(a);
+
+            if !matches!(self.peek().data, Comma) {
+                break;
+            }
+        }
+
+        if args.len() > 255 {
+            // todo: can we return this as an error in a way that doesn't block parsing?
+            println!("Can't have more than 255 arguments.");
+        }
+
+        self.expect(TokenData::RightParen, "closing ')' after arguments")?;
+
+        Ok(args)
     }
 
     fn primary(&mut self) -> Result<Expr, Error> {
@@ -487,6 +516,28 @@ impl Parser {
                     format!("unexpected token: {t:?}"),
                     *line,
                 ))
+            }
+        };
+
+        Ok(ident)
+    }
+
+    fn parse_identifier(&mut self) -> Result<Expr, Error> {
+        let Token { data, line } = self.peek();
+        let ident = match &data {
+            Identifier(s) => {
+                // clone the string out of the immutable borrow before modifying self
+                let expr = Expr::new(ExprData::Identifier(s.clone()), *line);
+
+                self.next();
+
+                expr
+            }
+            _ => {
+                return Err(Error::parse_error(
+                    "expected valid identifier".into(),
+                    *line,
+                ));
             }
         };
 

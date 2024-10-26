@@ -1,8 +1,11 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::config::Config;
 use crate::error::ErrorState;
-use crate::eval::Value;
+use crate::eval::{NativeFn, Value};
 use crate::grammar::{Decl, ExprData, Program, Stmt};
 
 /// Simple wrapper around one scope.
@@ -37,8 +40,23 @@ pub struct Environment {
 
 impl Environment {
     pub fn new() -> Self {
+        let mut global = Scope::new();
+
+        let f = |_: &mut Environment, _| {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            Ok(Value::Number(now as f64))
+        };
+        global.insert(
+            "clock".to_string(),
+            Value::NativeFn(NativeFn::new(vec![], Rc::new(f))),
+        );
+
         Self {
-            scopes: vec![Scope::new()],
+            scopes: vec![global],
         }
     }
 
@@ -194,16 +212,14 @@ impl ExecState {
                     }
                 }
             }
-            Stmt::While(condition_expr, body) => {
-                loop {
-                    let condition = condition_expr.eval(&mut self.env)?;
-                    if condition.is_truthy() {
-                        self.eval_stmt(body)?;
-                    } else {
-                        break;
-                    }
+            Stmt::While(condition_expr, body) => loop {
+                let condition = condition_expr.eval(&mut self.env)?;
+                if condition.is_truthy() {
+                    self.eval_stmt(body)?;
+                } else {
+                    break;
                 }
-            }
+            },
         }
 
         Ok(())

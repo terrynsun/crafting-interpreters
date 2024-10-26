@@ -66,6 +66,9 @@ impl Expr {
 impl ExprData {
     pub fn pretty_recur(&self, indent: usize) {
         match self {
+            Self::FnCall(_callee, _args) => {
+                todo!();
+            }
             Self::Assignment(lvalue, rvalue) => {
                 lvalue.pretty_recur(indent);
                 println!("{}{}", " ".repeat(indent), "=");

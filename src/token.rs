@@ -39,7 +39,7 @@ pub enum TokenData {
 
     Identifier(String),
     StringToken(String),
-    Number(f32),
+    Number(f64),
 
     // Keywords.
     And,
