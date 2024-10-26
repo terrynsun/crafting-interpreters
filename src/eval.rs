@@ -145,8 +145,8 @@ impl ExprData {
             Self::FnCall(callee, args) => {
                 let callee_fn = callee.eval(state)?;
 
-                // todo: can we map this?
-                //let arg_values: Vec<Result<Value, ErrorState>> = args.iter().map(|a| a.eval(state)).collect();
+                // Can't use map here because I think we want to force the return as soon as we hit
+                // the first runtime error.
                 let mut arg_values = vec![];
                 for a in args {
                     arg_values.push(a.eval(state)?);
