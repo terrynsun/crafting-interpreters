@@ -74,9 +74,14 @@ pub enum UnaryOp {
 // program        → declaration* EOF ;
 
 // declaration    → varDecl
+//                | funDecl
 //                | statement ;
 //
 // varDecl        → "var" IDENTIFIER ( '=' expression ) ? ;
+//
+// funDecl        → "fun" function
+// function       → IDENTIFIER "(" parameters? ")" block ;
+// arguments      → IDENTIFIER ( "," IDENTIFIER )* ;
 //
 // statement      → exprStmt
 //                | printStmt
@@ -112,7 +117,12 @@ pub enum Stmt {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Decl {
     // The first Expr must be an identifier
+    // (lvalue, rvalue)
     VarDecl(Expr, Expr),
+
+    // The first Expr must be an identifier
+    // name (Expr::Identifier), parameters (identifiers), body (Stmt::Block)
+    FunDecl(Expr, Vec<String>, Stmt),
 
     Stmt(Stmt),
 }

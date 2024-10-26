@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::error::ErrorState;
-use crate::exec::Environment;
+use crate::exec::ExecState;
 use crate::grammar::{BinOp, Expr, ExprData, Stmt, UnaryOp};
 
 /// Represents a single value in lox.
@@ -20,21 +20,25 @@ pub enum Value {
 #[derive(Clone)]
 pub struct NativeFn {
     // array of identifiers
-    arg_names: Vec<String>,
+    parameters: Vec<String>,
 
-    body: Rc<dyn Fn(&mut Environment, Vec<Value>) -> Result<Value, ErrorState>>,
+    body: Rc<dyn Fn(&mut ExecState, Vec<Value>) -> Result<Value, ErrorState>>,
 }
 
 impl NativeFn {
     pub fn new(
-        arg_names: Vec<String>,
-        body: Rc<dyn Fn(&mut Environment, Vec<Value>) -> Result<Value, ErrorState>>,
+        parameters: Vec<String>,
+        body: Rc<dyn Fn(&mut ExecState, Vec<Value>) -> Result<Value, ErrorState>>,
     ) -> Self {
-        Self { arg_names, body }
+        Self { parameters, body }
     }
 
-    pub fn call(&self, env: &mut Environment, args: Vec<Value>) -> Result<Value, ErrorState> {
-        (self.body)(env, args)
+    pub fn call(&self, state: &mut ExecState, args: Vec<Value>) -> Result<Value, ErrorState> {
+        for (arg, param) in args.iter().zip(self.parameters.iter()) {
+            state.env.insert(param.clone(), arg.clone());
+        }
+
+        (self.body)(state, args)
     }
 }
 
@@ -47,30 +51,32 @@ impl std::fmt::Debug for NativeFn {
 #[derive(Clone, Debug)]
 pub struct LoxFn {
     // array of identifiers
-    arg_names: Vec<String>,
+    parameters: Vec<String>,
 
     body: Stmt,
 }
 
 impl LoxFn {
+    pub fn new(parameters: Vec<String>, body: Stmt) -> Self {
+        Self { parameters, body }
+    }
+
     fn arity(&self) -> u32 {
-        self.arg_names.len() as u32
-    }
-}
-
-impl LoxFn {
-    pub fn new(arg_names: Vec<String>, body: Stmt) -> Self {
-        Self { arg_names, body }
+        self.parameters.len() as u32
     }
 
-    pub fn call(&self, env: &mut Environment, _args: Vec<Value>) -> Result<Value, ErrorState> {
-        env.open_scope();
+    pub fn call(&self, state: &mut ExecState, args: Vec<Value>) -> Result<Value, ErrorState> {
+        for (arg, param) in args.iter().zip(self.parameters.iter()) {
+            state.env.insert(param.clone(), arg.clone());
+        }
 
-        //let value = (self.body)(env)?;
+        if let Stmt::Block(decls) = &self.body {
+            for d in decls {
+                state.exec_decl(&d)?;
+            }
+            // todo: check for return statement
+        }
 
-        env.pop_scope();
-
-        // todo!
         Ok(Value::Nil)
     }
 }
@@ -124,13 +130,13 @@ impl PartialEq for Value {
 impl Expr {
     /// Evaluates an expression to a value. Takes in an environment to evaluate other global and
     /// local variables.
-    pub fn eval(&self, state: &mut Environment) -> Result<Value, ErrorState> {
+    pub fn eval(&self, state: &mut ExecState) -> Result<Value, ErrorState> {
         self.data.eval(self.line, state)
     }
 }
 
 impl ExprData {
-    pub fn eval(&self, line: u32, state: &mut Environment) -> Result<Value, ErrorState> {
+    pub fn eval(&self, line: u32, state: &mut ExecState) -> Result<Value, ErrorState> {
         match self {
             Self::FnCall(callee, args) => {
                 let callee_fn = callee.eval(state)?;
@@ -142,16 +148,15 @@ impl ExprData {
                     arg_values.push(a.eval(state)?);
                 }
 
-                // todo: check arity
-                state.open_scope();
+                state.env.open_scope();
 
                 let value = match callee_fn {
                     Value::NativeFn(f) => f.call(state, arg_values),
-                    //Value::LoxFn(f) => f.call(state, arg_values)?,
+                    Value::LoxFn(f) => f.call(state, arg_values),
                     _ => panic!("not a valid call target"),
                 };
 
-                state.pop_scope();
+                state.env.pop_scope();
 
                 value
             }
@@ -161,8 +166,8 @@ impl ExprData {
                 // todo: modified from exec's decl. needed to_string and clone. why?
                 match &lvalue.data {
                     ExprData::Identifier(s) => {
-                        if state.contains(s) {
-                            if let Err(()) = state.update(s.to_string(), val.clone()) {
+                        if state.env.contains(s) {
+                            if let Err(()) = state.env.update(s.to_string(), val.clone()) {
                                 // todo - duplicated logic/error message. In _theory_, we shouldn't
                                 // reach this one because we already checked `contains`.
                                 return Err(ErrorState::runtime_error(
@@ -308,7 +313,7 @@ impl ExprData {
                 }
             }
 
-            Self::Identifier(id) => Ok(state.get(id).unwrap_or(Value::Nil)),
+            Self::Identifier(id) => Ok(state.env.get(id).unwrap_or(Value::Nil)),
             Self::StringLiteral(s) => Ok(Value::String(s.clone())),
             Self::NumberLiteral(n) => Ok(Value::Number(*n)),
             Self::True => Ok(Value::Boolean(true)),

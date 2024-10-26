@@ -123,10 +123,23 @@ impl Parser {
             Var => {
                 self.next();
 
-                let d = self.inner_declaration()?;
+                let d = self.var_declaration()?;
                 self.expect(TokenData::Semicolon, "semicolon")?;
 
                 d
+            }
+
+            Fun => {
+                self.next();
+
+                let name = self.parse_identifier()?;
+
+                let params = self.parse_fn_params()?;
+
+                // todo: the book's grammar says this has to be a block
+                let body = self.statement()?;
+
+                Decl::FunDecl(name, params, body)
             }
 
             _ => {
@@ -138,7 +151,36 @@ impl Parser {
         Ok(decl)
     }
 
-    fn inner_declaration(&mut self) -> Result<Decl, Error> {
+    // Almost identical to parse_fn_arguments, but parses identiifers insteasd of expressions.
+    fn parse_fn_params(&mut self) -> Result<Vec<String>, Error> {
+        self.expect(TokenData::LeftParen, "left paren")?;
+
+        let mut args = vec![];
+
+        // No arguments, exit early
+        if matches!(self.peek().data, RightParen) {
+            self.next();
+            return Ok(args);
+        }
+
+        loop {
+            if let ExprData::Identifier(id) = self.parse_identifier()?.data {
+                args.push(id);
+            }
+
+            if matches!(self.peek().data, Comma) {
+                self.next();
+            } else {
+                break;
+            }
+        }
+
+        self.expect(TokenData::RightParen, "closing ')' after parameter list")?;
+
+        Ok(args)
+    }
+
+    fn var_declaration(&mut self) -> Result<Decl, Error> {
         let id = self.parse_identifier()?;
 
         let Token { data, line } = self.peek();
@@ -228,7 +270,7 @@ impl Parser {
 
                 self.expect(TokenData::LeftParen, "left parens")?;
                 self.expect(TokenData::Var, "var")?;
-                let declaration = self.inner_declaration()?;
+                let declaration = self.var_declaration()?;
 
                 self.expect(TokenData::Semicolon, "semicolon")?;
 
@@ -433,7 +475,9 @@ impl Parser {
             let a = self.parse_expression()?;
             args.push(a);
 
-            if !matches!(self.peek().data, Comma) {
+            if matches!(self.peek().data, Comma) {
+                self.next();
+            } else {
                 break;
             }
         }
@@ -533,9 +577,9 @@ impl Parser {
 
                 expr
             }
-            _ => {
+            s => {
                 return Err(Error::parse_error(
-                    "expected valid identifier".into(),
+                    format!("expected valid identifier, got {s:?}"),
                     *line,
                 ));
             }

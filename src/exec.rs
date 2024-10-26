@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use crate::config::Config;
 use crate::error::ErrorState;
-use crate::eval::{NativeFn, Value};
+use crate::eval::{LoxFn, NativeFn, Value};
 use crate::grammar::{Decl, ExprData, Program, Stmt};
 
 /// Simple wrapper around one scope.
@@ -42,7 +42,7 @@ impl Environment {
     pub fn new() -> Self {
         let mut global = Scope::new();
 
-        let f = |_: &mut Environment, _| {
+        let f = |_: &mut ExecState, _| {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -100,7 +100,7 @@ pub struct ExecState {
     config: Config,
 
     /// Variable store.
-    env: Environment,
+    pub env: Environment,
 
     /// If this value is populated, write print statements into this string so they can be captured
     /// for tests.
@@ -163,10 +163,10 @@ impl ExecState {
         Ok(())
     }
 
-    fn exec_decl(&mut self, decl: &Decl) -> Result<(), ErrorState> {
+    pub fn exec_decl(&mut self, decl: &Decl) -> Result<(), ErrorState> {
         match decl {
             Decl::VarDecl(id, expr) => {
-                let val = expr.eval(&mut self.env)?;
+                let val = expr.eval(self)?;
 
                 match &id.data {
                     ExprData::Identifier(s) => {
@@ -179,6 +179,22 @@ impl ExecState {
                     }
                 }
             }
+
+            Decl::FunDecl(name, parameters, body) => {
+                // todo: store Identifier instead of Expr so we don't have to check this...
+                let name = match &name.data {
+                    ExprData::Identifier(s) => s,
+                    _ => {
+                        // I think this should have been checked during parsing, which is why it's
+                        // a panic.
+                        panic!("expected identifier");
+                    }
+                };
+
+                let f = LoxFn::new(parameters.clone(), body.clone());
+                self.env.insert(name.to_string(), Value::LoxFn(f));
+            }
+
             Decl::Stmt(stmt) => self.eval_stmt(stmt)?,
         }
 
@@ -188,10 +204,10 @@ impl ExecState {
     fn eval_stmt(&mut self, stmt: &Stmt) -> Result<(), ErrorState> {
         match stmt {
             Stmt::Expr(e) => {
-                self.value = e.eval(&mut self.env)?;
+                self.value = e.eval(self)?;
             }
             Stmt::Print(e) => {
-                let val = e.eval(&mut self.env)?;
+                let val = e.eval(self)?;
 
                 self.print(&val.to_string());
             }
@@ -203,7 +219,7 @@ impl ExecState {
                 self.env.pop_scope();
             }
             Stmt::If(condition_expr, then_stmt, else_stmt) => {
-                let condition = condition_expr.eval(&mut self.env)?;
+                let condition = condition_expr.eval(self)?;
                 if condition.is_truthy() {
                     self.eval_stmt(then_stmt)?;
                 } else {
@@ -213,7 +229,7 @@ impl ExecState {
                 }
             }
             Stmt::While(condition_expr, body) => loop {
-                let condition = condition_expr.eval(&mut self.env)?;
+                let condition = condition_expr.eval(self)?;
                 if condition.is_truthy() {
                     self.eval_stmt(body)?;
                 } else {

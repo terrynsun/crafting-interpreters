@@ -21,6 +21,10 @@ impl Decl {
                 e.pretty();
             }
 
+            Decl::FunDecl(name, parameters, body) => {
+                println!("fun {name:?} ({parameters:?}) => {body:?}");
+            }
+
             Decl::Stmt(e) => e.pretty(),
         }
         println!();
