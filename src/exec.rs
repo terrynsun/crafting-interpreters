@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::config::Config;
 use crate::error::ErrorState;
 use crate::eval::{LoxFn, NativeFn, Value};
-use crate::grammar::{Decl, ExprData, Program, Stmt};
+use crate::grammar::{Decl, Program, Stmt};
 
 /// Simple wrapper around one scope.
 pub struct Scope {
@@ -167,30 +167,10 @@ impl ExecState {
         match decl {
             Decl::VarDecl(id, expr) => {
                 let val = expr.eval(self)?;
-
-                match &id.data {
-                    ExprData::Identifier(s) => {
-                        self.env.insert(s.clone(), val);
-                    }
-                    _ => {
-                        // I think this should have been checked during parsing, which is why it's
-                        // a panic.
-                        panic!("expected identifier");
-                    }
-                }
+                self.env.insert(id.clone(), val);
             }
 
             Decl::FunDecl(name, parameters, body) => {
-                // todo: store Identifier instead of Expr so we don't have to check this...
-                let name = match &name.data {
-                    ExprData::Identifier(s) => s,
-                    _ => {
-                        // I think this should have been checked during parsing, which is why it's
-                        // a panic.
-                        panic!("expected identifier");
-                    }
-                };
-
                 let f = LoxFn::new(parameters.clone(), body.clone());
                 self.env.insert(name.to_string(), Value::LoxFn(f));
             }

@@ -116,15 +116,14 @@ pub enum Stmt {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Decl {
-    // The first Expr must be an identifier
     // (lvalue, rvalue)
-    VarDecl(Expr, Expr),
+    VarDecl(Identifier, Expr),
 
-    // The first Expr must be an identifier
-    // name (Expr::Identifier), parameters (identifiers), body (Stmt::Block)
-    FunDecl(Expr, Vec<String>, Stmt),
+    // name, parameters, body (Stmt::Block)
+    FunDecl(Identifier, Vec<Identifier>, Stmt),
 
     Stmt(Stmt),
 }
 
+pub type Identifier = String;
 pub type Program = Vec<Decl>;

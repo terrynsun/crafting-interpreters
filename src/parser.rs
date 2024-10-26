@@ -1,5 +1,5 @@
 use crate::error::{Error, ErrorState};
-use crate::grammar::{BinOp, Decl, Expr, ExprData, Program, Stmt, UnaryOp};
+use crate::grammar::{BinOp, Decl, Expr, ExprData, Identifier, Program, Stmt, UnaryOp};
 use crate::token::{
     Token,
     TokenData::{self, *},
@@ -164,9 +164,7 @@ impl Parser {
         }
 
         loop {
-            if let ExprData::Identifier(id) = self.parse_identifier()?.data {
-                args.push(id);
-            }
+            args.push(self.parse_identifier()?);
 
             if matches!(self.peek().data, Comma) {
                 self.next();
@@ -566,12 +564,12 @@ impl Parser {
         Ok(ident)
     }
 
-    fn parse_identifier(&mut self) -> Result<Expr, Error> {
+    fn parse_identifier(&mut self) -> Result<Identifier, Error> {
         let Token { data, line } = self.peek();
         let ident = match &data {
             Identifier(s) => {
                 // clone the string out of the immutable borrow before modifying self
-                let expr = Expr::new(ExprData::Identifier(s.clone()), *line);
+                let expr = s.clone();
 
                 self.next();
 
